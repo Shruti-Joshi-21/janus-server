@@ -61,6 +61,10 @@ const NOTES: Record<string, { returns: string; example: Record<string, unknown> 
       "`verdict` ('fair'|'slightly_high'|'high'|'low'|'insufficient_data'), `tier_used` ('household_history'|'society_average'|'reference_prices'|null), `expected_min`, `expected_max`, `last_paid`?, `last_paid_date`?, `difference_pct`, `explanation_en` (ready to paraphrase to the household), `compared` ('total'|'parts'|'labour' — which part decided), `components` {total?, parts?, labour?} each with amount/expected_min/expected_max/verdict/difference_pct, `alternative_service_types[]` (other jobs whose price range the bill fits), `known_service_types[]` (only when insufficient_data), `context` {inflation_buffer_pct, reference_range, reference_source, society_data_points}",
     example: { household_id: "hh_priya", appliance_type: "ac", service_type: "gas_top_up", total_amount: 900 },
   },
+  scenario_set: { returns: "`scenario` {key, value, uses_left (null = until cleared)}, `affects` (which mock tool)", example: { key: "pinelabs.next_payout", value: "timeout", uses: 1 } },
+  scenario_list: { returns: "`active[]` {key, value, uses_left, created_at}, `catalog` {key: {values[], description}}", example: {} },
+  scenario_clear: { returns: "`cleared[]` (keys removed)", example: { key: "pinelabs.next_payout" } },
+  reset_demo_data: { returns: "`reset: true`, `took_ms`", example: { confirm: "RESET" } },
   checks_due: { returns: "`now`, `count`, `checks[]` (with job_state, technician_id)", example: {} },
   check_done: { returns: "`check`", example: { check_id: "chk_…", outcome: "Ramesh replied, slot 5 PM" } },
 };
