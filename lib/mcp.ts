@@ -50,6 +50,44 @@ function describeIssues(error: z.ZodError): string {
   return error.issues.map((i) => `${i.path.join(".") || "input"}: ${i.message}`).join("; ");
 }
 
+// ───────────────────────── Mock tools (Delhivery, Pine Labs, custom) ─────────────────────────
+// Mocks must answer with the partner's documented response body, unchanged. A handler returns
+// { status, body } (or { malformed } for a deliberately broken reply). Errors (status >= 400) are
+// marked isError and their text starts with "HTTP <status>:" so Janus can tell a 504 from a 400.
+export type MockReply =
+  | { status: number; body: unknown }
+  | { malformed: string };
+
+export function addMockTool<S extends z.ZodObject>(
+  server: McpServer,
+  name: string,
+  description: string,
+  inputSchema: S,
+  handler: (args: z.infer<S>) => Promise<MockReply>,
+  onInvalid: (issues: z.core.$ZodIssue[]) => MockReply,
+) {
+  const callback = async (rawArgs: unknown) => {
+    let reply: MockReply;
+    try {
+      const parsed = inputSchema.safeParse(rawArgs ?? {});
+      reply = parsed.success ? await handler(parsed.data) : onInvalid(parsed.error.issues);
+    } catch (err) {
+      console.error(`[mock ${name}]`, err);
+      reply = { status: 500, body: { error: "Internal Server Error" } };
+    }
+    if ("malformed" in reply) return { content: [{ type: "text" as const, text: reply.malformed }] };
+    const json = JSON.stringify(reply.body);
+    const isError = reply.status >= 400;
+    const isObject = reply.body !== null && typeof reply.body === "object" && !Array.isArray(reply.body);
+    return {
+      content: [{ type: "text" as const, text: isError ? `HTTP ${reply.status}: ${json}` : json }],
+      ...(isObject ? { structuredContent: reply.body as Record<string, unknown> } : {}),
+      ...(isError ? { isError: true } : {}),
+    };
+  };
+  server.registerTool(name, { description, inputSchema: listedOnly(inputSchema) as never }, callback as never);
+}
+
 // Registers a tool whose handler returns a plain object. The result is always JSON with ok:true|false.
 export function addTool<S extends z.ZodObject>(
   server: McpServer,

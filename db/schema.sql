@@ -232,18 +232,20 @@ CREATE TABLE inflation_buffers (
 
 -- ───────────────────────── Data behind mocks / custom capabilities ─────────────────────────
 
--- Known Pune places for the Delhivery Maps mock (geocode, validate, autosuggest).
+-- Known Pune places for the Delhivery Maps mock (geocode, validate, verify, reverse geocode, autosuggest).
 CREATE TABLE delhivery_places (
-  id            text PRIMARY KEY DEFAULT new_id('plc'),
-  name          text NOT NULL,
-  address_line  text NOT NULL,
-  locality      text,
-  city          text NOT NULL,
-  state         text NOT NULL,
-  pincode       text NOT NULL,
-  latitude      double precision NOT NULL,
-  longitude     double precision NOT NULL,
-  aliases       text[] NOT NULL DEFAULT '{}'
+  id                       text PRIMARY KEY DEFAULT new_id('plc'),
+  name                     text NOT NULL,
+  kind                     text NOT NULL CHECK (kind IN ('building', 'street', 'poi', 'locality')),
+  address_line             text NOT NULL,          -- "Sai Heights, Baner Road, Baner" (no city/state/pincode)
+  locality                 text,
+  city                     text NOT NULL,
+  state                    text NOT NULL,
+  pincode                  text NOT NULL,
+  latitude                 double precision NOT NULL,
+  longitude                double precision NOT NULL,
+  aliases                  text[] NOT NULL DEFAULT '{}',
+  last_delivered_days_ago  integer                 -- for verify_address; NULL = no delivery on record
 );
 
 -- Local businesses (Delhivery POI data) for technician_discovery.

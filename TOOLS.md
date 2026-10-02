@@ -9,7 +9,7 @@ If a name here differs from the prompt, the prompt is wrong.
 | --- | --- | --- |
 | `mcp_janus_core_pict` | Janus's database, people, jobs, payments, follow-up checks, price fairness, failure switches, demo reset | **Live, 35 tools** (re-register the connector to see the 4 scenario/reset tools) |
 | Twilio inbound webhook `/api/twilio/inbound` | Incoming WhatsApp → JSON `{channel, from_phone, text, media_url, media_type, latitude, longitude, received_at, twilio_message_sid}` → Janus, either by AgenticOrg `POST /api/v1/workflows/{id}/run` (body `{payload: event}`, needs an admin API key) or by email to the Janus Gmail (subject `[janus-inbound] WhatsApp from +91…`, body = the JSON) | **Live** via Gmail: every message arrives at janus.pict.demo@gmail.com |
-| `delhivery_janus` | Delhivery Maps mock | Planned (M7) |
+| `mcp_delhivery_janus_pict` | Delhivery Maps mock: validate/verify/geocode/reverse-geocode addresses, distance matrix, autosuggest. Returns Delhivery's exact response bodies (not our `{ok}` shape); see MOCKS.md | **Built (M7), 6 tools**; register as `delhivery_janus_pict` |
 | `pinelabs_janus` | Pine Labs mandate / subscription / payout mock | Planned (M8) |
 | `janus_custom` | proof_of_presence, technician_discovery, technician_identity_check | Planned (M9) |
 | `mcp_gnani_janus_pict` | Real Gnani speech-to-text (WhatsApp voice notes) and text-to-speech (voice replies) | **Built (M6), 2 tools**; register as `gnani_janus_pict` |
@@ -20,6 +20,7 @@ When new tools are added to a connector, AgenticOrg only sees them after the con
 
 - **Every answer is JSON.** Success: `{"ok": true, ...}`. Failure: `{"ok": false, "error_code": "JOB_NOT_FOUND", "message": "No job with id \"job_x\"."}` — some failures add extra fields (listed under Error codes). Janus should read `ok` first, never assume success.
 - **Bad input** (missing field, wrong type, unknown key, bad date) → `error_code: "INVALID_INPUT"` with a message naming the field.
+- **Exception: partner mocks (Delhivery now; Pine Labs and custom tools later)** answer with the partner's **real** response body, not `{ok: …}`. Success = the documented JSON. Failure = the tool result is flagged as an error and its text starts with `HTTP <status>:` followed by the partner's error body (e.g. `HTTP 504: {"detail": "Upstream service 'matrix' timed out"}`). A "malformed" reply is broken JSON that can't be parsed; Janus should treat it like an error and retry or fall back.
 - **Phone numbers**: E.164 (`+918530921384`). Tools also accept `9000000001`, `+91 90000 00001`, `whatsapp:+918530921384` and always return the normalised form.
 - **Money**: whole rupees, integers (`650`, not `"₹650"` or `650.00`).
 - **Ids** are readable strings with a prefix: `hh_` household, `mem_` member, `app_` appliance, `tech_` technician, `job_`, `pay_`, `rate_`, `cmp_` complaint, `chk_` check, `ntf_` notification, `soc_` society.
@@ -197,11 +198,11 @@ Neighbours (3 other flats, never named to Priya) add AC gas top-up payments of �
 
 | Key | Values | Affects | Mock built? |
 | --- | --- | --- | --- |
-| `delhivery.next_validate` | incomplete, not_found, timeout, malformed | validate_address / verify_address | M7 (not yet) |
-| `delhivery.next_geocode` | not_found, timeout, malformed | geocode_address | M7 |
-| `delhivery.next_reverse_geocode` | unknown_coordinates, timeout, malformed | reverse_geocode | M7 |
-| `delhivery.next_matrix` | unknown_coordinates, timeout, malformed | compute_distance_matrix | M7 |
-| `delhivery.next_autosuggest` | not_found, timeout, malformed | auto_suggest | M7 |
+| `delhivery.next_validate` | incomplete, not_found, timeout, malformed | validate_address / verify_address | **yes** |
+| `delhivery.next_geocode` | not_found, timeout, malformed | geocode_address | **yes** |
+| `delhivery.next_reverse_geocode` | unknown_coordinates, timeout, malformed | reverse_geocode | **yes** |
+| `delhivery.next_matrix` | unknown_coordinates, timeout, malformed | compute_distance_matrix | **yes** |
+| `delhivery.next_autosuggest` | not_found, timeout, malformed | auto_suggest | **yes** |
 | `pinelabs.next_mandate` | declined, limit_exceeded, timeout, malformed | One-Time Mandate | M8 |
 | `pinelabs.next_subscription` | declined, timeout, malformed | Fixed Frequency Subscription | M8 |
 | `pinelabs.next_payout` | insufficient_balance, failed, timeout, malformed | Payouts | M8 |
@@ -925,6 +926,111 @@ Turn text into a WhatsApp voice note with Gnani (OGG/Opus) and return a public a
 Example:
 ```json
 {"tool":"gnani_text_to_speech","arguments":{"text":"नमस्कार प्रिया, रमेश उद्या संध्याकाळी पाच वाजता येईल.","language":"mr-IN"}}
+```
+
+## Connector `mcp_delhivery_janus_pict` — 6 tools
+
+URL: `https://janus-server.vercel.app/delhivery/mcp` (server name `delhivery_janus`)
+
+### `validate_address`
+
+Delhivery: identifies address errors or missing details and returns a corrected version. Response: quality (ok|not_ok), granularity_level (PREMISE…NONE), reason (valid|incomplete|correction_needed|invalid_or_junk), formatted_address, corrections (inline diff: <old|new>, <|added>), request_id, req_id.
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `address` | string | no |  |
+| `req_id` | string | no |  |
+
+**Returns** (besides `ok: true`): Delhivery body: `quality`, `granularity_level`, `reason`, `formatted_address`, `corrections`, `request_id`, `req_id`. Errors: `HTTP 400 {error}`, `HTTP 504 {error, detail}`
+
+Example:
+```json
+{"tool":"validate_address","arguments":{"address":"flat 4b sai heights baner pune","req_id":"job-123"}}
+```
+
+### `verify_address`
+
+Delhivery: confirms if an address is valid and checks if Delhivery has delivered there within the last `months` (1–24). Validation runs first; is_verified needs a PREMISE-level match. Response: validation fields + is_verified, last_visited_date (YYYY-MM-DD or null), verification_reasoning, request_id, req_id.
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `address` | string | no |  |
+| `months` | any | no |  |
+| `req_id` | string | no |  |
+
+**Returns** (besides `ok: true`): Delhivery body: validation fields + `is_verified`, `last_visited_date`, `verification_reasoning`, `request_id`, `req_id`
+
+Example:
+```json
+{"tool":"verify_address","arguments":{"address":"Flat 4B, Sai Heights, Baner, Pune 411045","months":6}}
+```
+
+### `geocode_address`
+
+Delhivery: converts an address into latitude and longitude. Response: req_id, lat, lng, error_radius (metres; lower = more confident), metadata.pincode. lat/lng are null when nothing is found.
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `address` | string | no |  |
+| `req_id` | string \| null | no |  |
+
+**Returns** (besides `ok: true`): Delhivery body: `req_id`, `lat`, `lng`, `error_radius` (m), `metadata.pincode` (lat/lng null when not found)
+
+Example:
+```json
+{"tool":"geocode_address","arguments":{"address":"Flat 4B, Sai Heights, Baner, Pune 411045","req_id":"job-123"}}
+```
+
+### `reverse_geocode`
+
+Delhivery: converts latitude and longitude into an address (Google Geocoding format). A precise match returns one ROOFTOP result; otherwise APPROXIMATE results at descending granularity. Response: status, req_id, data {status, results[{formatted_address, types, geometry{location{lat,lng}, location_type}, address_components[]}]}.
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `req_id` | string | yes |  |
+| `lat` | number | yes |  |
+| `lng` | number | yes |  |
+
+**Returns** (besides `ok: true`): Delhivery body: `status`, `req_id`, `data` {status ('OK'|'ZERO_RESULTS'), results[]} (Google geocoding format)
+
+Example:
+```json
+{"tool":"reverse_geocode","arguments":{"req_id":"loc-1","lat":18.5603,"lng":73.7812}}
+```
+
+### `compute_distance_matrix`
+
+Delhivery: travel distance (km) and time (seconds) for every source→target pair. sources/targets are [lat, lng] pairs in India; travel_mode: motorcycle, auto (default), truck, pedestrian. Response: status, sources_to_targets[source][target] = {distance, time, from_index, to_index}.
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `sources` | number[][] | yes |  |
+| `targets` | number[][] | yes |  |
+| `travel_mode` | string | no | default `"auto"` |
+| `route_modifiers` | object \| null | no |  |
+
+**Returns** (besides `ok: true`): Delhivery body: `status`, `sources_to_targets[i][j]` = {distance (km), time (seconds), from_index, to_index}
+
+Example:
+```json
+{"tool":"compute_distance_matrix","arguments":{"sources":[[18.5712,73.7795]],"targets":[[18.5603,73.7812]],"travel_mode":"motorcycle"}}
+```
+
+### `auto_suggest`
+
+Delhivery: finds places and addresses as you type. query can be text, a 6-digit pin code, or a 'lat,lng' pair; optional lat/lng bias results toward the user. Response: array of {entity_id, entity_name, display_text, full_address, shape, lat, long, entity_type, score} (may be empty).
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `query` | string | no |  |
+| `lat` | number | no |  |
+| `lng` | number | no |  |
+
+**Returns** (besides `ok: true`): Delhivery body: array of {entity_id, entity_name, display_text, full_address, shape, lat, long, entity_type, score} (may be empty)
+
+Example:
+```json
+{"tool":"auto_suggest","arguments":{"query":"sai heights","lat":18.56,"lng":73.78}}
 ```
 
 <!-- TOOLS:END -->

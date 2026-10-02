@@ -19,6 +19,7 @@ type Tool = { name: string; description?: string; inputSchema: JsonSchema };
 const CONNECTORS: Record<string, { path: string; connector: string }> = {
   janus_core: { path: "/janus-core/mcp", connector: "mcp_janus_core_pict" },
   gnani_janus: { path: "/gnani/mcp", connector: "mcp_gnani_janus_pict" },
+  delhivery_janus: { path: "/delhivery/mcp", connector: "mcp_delhivery_janus_pict" },
 };
 
 // What each tool returns (besides ok:true) and one example call. Keep in step with lib/janus-core/.
@@ -74,6 +75,30 @@ const NOTES: Record<string, { returns: string; example: Record<string, unknown> 
   gnani_text_to_speech: {
     returns: "`audio_url` (public OGG/Opus link, send it as WhatsApp media), `content_type`, `bytes`, `language`, `voice`, `took_ms`, `partner: \"Gnani\"`",
     example: { text: "नमस्कार प्रिया, रमेश उद्या संध्याकाळी पाच वाजता येईल.", language: "mr-IN" },
+  },
+  validate_address: {
+    returns: "Delhivery body: `quality`, `granularity_level`, `reason`, `formatted_address`, `corrections`, `request_id`, `req_id`. Errors: `HTTP 400 {error}`, `HTTP 504 {error, detail}`",
+    example: { address: "flat 4b sai heights baner pune", req_id: "job-123" },
+  },
+  verify_address: {
+    returns: "Delhivery body: validation fields + `is_verified`, `last_visited_date`, `verification_reasoning`, `request_id`, `req_id`",
+    example: { address: "Flat 4B, Sai Heights, Baner, Pune 411045", months: 6 },
+  },
+  geocode_address: {
+    returns: "Delhivery body: `req_id`, `lat`, `lng`, `error_radius` (m), `metadata.pincode` (lat/lng null when not found)",
+    example: { address: "Flat 4B, Sai Heights, Baner, Pune 411045", req_id: "job-123" },
+  },
+  reverse_geocode: {
+    returns: "Delhivery body: `status`, `req_id`, `data` {status ('OK'|'ZERO_RESULTS'), results[]} (Google geocoding format)",
+    example: { req_id: "loc-1", lat: 18.5603, lng: 73.7812 },
+  },
+  compute_distance_matrix: {
+    returns: "Delhivery body: `status`, `sources_to_targets[i][j]` = {distance (km), time (seconds), from_index, to_index}",
+    example: { sources: [[18.5712, 73.7795]], targets: [[18.5603, 73.7812]], travel_mode: "motorcycle" },
+  },
+  auto_suggest: {
+    returns: "Delhivery body: array of {entity_id, entity_name, display_text, full_address, shape, lat, long, entity_type, score} (may be empty)",
+    example: { query: "sai heights", lat: 18.56, lng: 73.78 },
   },
   checks_due: { returns: "`now`, `count`, `checks[]` (with job_state, technician_id)", example: {} },
   check_done: { returns: "`check`", example: { check_id: "chk_…", outcome: "Ramesh replied, slot 5 PM" } },

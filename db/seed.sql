@@ -159,14 +159,27 @@ INSERT INTO inflation_buffers (kind, annual_pct, note) VALUES
 
 -- ───────────────────────── Delhivery mock: known Pune places ─────────────────────────
 
-INSERT INTO delhivery_places (id, name, address_line, locality, city, state, pincode, latitude, longitude, aliases) VALUES
-  ('plc_sai_heights',  'Sai Heights',              'Sai Heights, Baner Road, Baner',               'Baner',     'Pune', 'Maharashtra', '411045', 18.5603, 73.7812, '{"sai heights","sai hts"}'),
-  ('plc_baner_rd',     'Baner Road',               'Baner Road, near Baner Gaon, Baner',           'Baner',     'Pune', 'Maharashtra', '411045', 18.5590, 73.7868, '{"baner gaon","baner"}'),
-  ('plc_balewadi_hs',  'Balewadi High Street',     'Balewadi High Street, Balewadi',               'Balewadi',  'Pune', 'Maharashtra', '411045', 18.5705, 73.7790, '{"high street","balewadi"}'),
-  ('plc_aundh_iti',    'ITI Road, Aundh',          'ITI Road, Aundh',                              'Aundh',     'Pune', 'Maharashtra', '411007', 18.5580, 73.8075, '{"aundh","iti road"}'),
-  ('plc_pashan',       'Pashan-Sus Road',          'Pashan-Sus Road, Pashan',                      'Pashan',    'Pune', 'Maharashtra', '411021', 18.5362, 73.7950, '{"pashan","sus road"}'),
-  ('plc_hinjewadi_p1', 'Hinjewadi Phase 1',        'Rajiv Gandhi Infotech Park, Phase 1, Hinjewadi','Hinjewadi', 'Pune', 'Maharashtra', '411057', 18.5913, 73.7389, '{"hinjewadi","phase 1"}'),
-  ('plc_kothrud',      'Karve Road, Kothrud',      'Karve Road, Kothrud',                          'Kothrud',   'Pune', 'Maharashtra', '411038', 18.5074, 73.8077, '{"kothrud","karve road"}');
+-- kind decides how deep an address can resolve: building (+ flat no.) → PREMISE; street/poi → STREET_LANDMARK;
+-- locality → LOCALITY. Matching prefers building > poi > street > locality, then the longest name/alias.
+INSERT INTO delhivery_places (id, name, kind, address_line, locality, city, state, pincode, latitude, longitude, aliases, last_delivered_days_ago) VALUES
+  -- Buildings (premise level with a flat number)
+  ('plc_sai_heights',     'Sai Heights',           'building', 'Sai Heights, Baner Road, Baner',                    'Baner',     'Pune', 'Maharashtra', '411045', 18.5603, 73.7812, '{"sai heights","sai hts","sai height"}', 9),
+  ('plc_lotus_residency', 'Lotus Residency',       'building', 'Lotus Residency, Balewadi High Street, Balewadi',   'Balewadi',  'Pune', 'Maharashtra', '411045', 18.5698, 73.7801, '{"lotus residency","lotus res"}',        40),
+  ('plc_kumar_paradise',  'Kumar Paradise',        'building', 'Kumar Paradise, Karve Road, Kothrud',               'Kothrud',   'Pune', 'Maharashtra', '411038', 18.5079, 73.8071, '{"kumar paradise"}',                      NULL),
+  -- Streets and landmarks
+  ('plc_baner_rd',        'Baner Road',            'street',   'Baner Road, Baner',                                 'Baner',     'Pune', 'Maharashtra', '411045', 18.5590, 73.7868, '{"baner road","baner rd"}',               3),
+  ('plc_balewadi_hs',     'Balewadi High Street',  'poi',      'Balewadi High Street, Balewadi',                    'Balewadi',  'Pune', 'Maharashtra', '411045', 18.5705, 73.7790, '{"balewadi high street","high street"}', 2),
+  ('plc_aundh_iti',       'ITI Road',              'street',   'ITI Road, Aundh',                                   'Aundh',     'Pune', 'Maharashtra', '411007', 18.5580, 73.8075, '{"iti road","iti rd"}',                   5),
+  ('plc_pashan_sus',      'Pashan-Sus Road',       'street',   'Pashan-Sus Road, Pashan',                           'Pashan',    'Pune', 'Maharashtra', '411021', 18.5362, 73.7950, '{"pashan-sus road","pashan sus road","sus road"}', 12),
+  ('plc_karve_rd',        'Karve Road',            'street',   'Karve Road, Kothrud',                               'Kothrud',   'Pune', 'Maharashtra', '411038', 18.5074, 73.8077, '{"karve road","karve rd"}',               1),
+  ('plc_hinjewadi_p1',    'Rajiv Gandhi Infotech Park Phase 1', 'poi', 'Rajiv Gandhi Infotech Park, Phase 1, Hinjewadi', 'Hinjewadi', 'Pune', 'Maharashtra', '411057', 18.5913, 73.7389, '{"hinjewadi phase 1","infotech park","phase 1"}', 4),
+  -- Localities
+  ('plc_loc_baner',       'Baner',                 'locality', 'Baner',                                             'Baner',     'Pune', 'Maharashtra', '411045', 18.5590, 73.7868, '{"baner"}',     NULL),
+  ('plc_loc_balewadi',    'Balewadi',              'locality', 'Balewadi',                                          'Balewadi',  'Pune', 'Maharashtra', '411045', 18.5760, 73.7700, '{"balewadi"}',  NULL),
+  ('plc_loc_aundh',       'Aundh',                 'locality', 'Aundh',                                             'Aundh',     'Pune', 'Maharashtra', '411007', 18.5580, 73.8075, '{"aundh"}',     NULL),
+  ('plc_loc_pashan',      'Pashan',                'locality', 'Pashan',                                            'Pashan',    'Pune', 'Maharashtra', '411021', 18.5362, 73.7950, '{"pashan"}',    NULL),
+  ('plc_loc_kothrud',     'Kothrud',               'locality', 'Kothrud',                                           'Kothrud',   'Pune', 'Maharashtra', '411038', 18.5074, 73.8077, '{"kothrud"}',   NULL),
+  ('plc_loc_hinjewadi',   'Hinjewadi',             'locality', 'Hinjewadi',                                         'Hinjewadi', 'Pune', 'Maharashtra', '411057', 18.5913, 73.7389, '{"hinjewadi"}', NULL);
 
 -- ───────────────────────── Custom capabilities data ─────────────────────────
 
