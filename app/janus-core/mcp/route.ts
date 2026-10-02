@@ -1,8 +1,9 @@
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import { withApiKey } from "@/lib/auth";
+import { registerJanusCoreTools } from "@/lib/janus-core";
 
-// The janus_core MCP server. More tools get added here in M3.
+// The janus_core MCP server: Janus's own database tools (see lib/janus-core/).
 const mcpHandler = createMcpHandler(
   (server) => {
     server.registerTool(
@@ -20,6 +21,8 @@ const mcpHandler = createMcpHandler(
         };
       },
     );
+
+    registerJanusCoreTools(server);
   },
   { serverInfo: { name: "janus_core", version: "0.1.0" } },
 );
