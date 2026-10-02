@@ -47,7 +47,7 @@ INSERT INTO household_technicians (household_id, technician_id, appliance_types,
 INSERT INTO society_log (id, society_id, technician_id, appliance_types, added_by_member_id, note) VALUES
   ('slog_suresh_1', 'soc_sai_heights', 'tech_suresh', '{ro_purifier}', 'mem_priya', 'Does the Kent AMC for several flats.'),
   ('slog_suresh_2', 'soc_sai_heights', 'tech_suresh', '{ro_purifier}', 'mem_ajit',  'Reliable, comes on Saturdays.'),
-  ('slog_anil_1',   'soc_sai_heights', 'tech_anil',   '{ac}',          'mem_neha',  'Cheap but had an issue with a gas refill.'),
+  ('slog_anil_1',   'soc_sai_heights', 'tech_anil',   '{ac}',          'mem_neha',  'Cheap but had an issue with a gas top-up.'),
   ('slog_ramesh_1', 'soc_sai_heights', 'tech_ramesh', '{ac,fridge}',   'mem_sunita','Good with split ACs.');
 
 -- ───────────────────────── Priya's appliances ─────────────────────────
@@ -68,7 +68,7 @@ INSERT INTO appliances (id, household_id, type, brand, model, serial, purchase_d
 
 INSERT INTO jobs (id, household_id, appliance_id, technician_id, route, state, service_type, issue,
                   confirmed_slot, created_at, contacted_at, slot_confirmed_at, arrived_at, done_at) VALUES
-  ('job_priya_ac_gas_2025', 'hh_priya', 'app_priya_ac', 'tech_ramesh', 'local', 'closed', 'gas_refill',
+  ('job_priya_ac_gas_2025', 'hh_priya', 'app_priya_ac', 'tech_ramesh', 'local', 'closed', 'gas_top_up',
    'AC not cooling properly.',
    '2025-04-12 17:00+05:30', '2025-04-11 10:00+05:30', '2025-04-11 10:05+05:30', '2025-04-11 11:30+05:30',
    '2025-04-12 16:55+05:30', '2025-04-12 18:10+05:30'),
@@ -76,23 +76,23 @@ INSERT INTO jobs (id, household_id, appliance_id, technician_id, route, state, s
    'Fridge light and compressor cutting off; burnt wire at the back.',
    '2025-11-08 11:00+05:30', '2025-11-07 19:00+05:30', '2025-11-07 19:02+05:30', '2025-11-07 20:15+05:30',
    '2025-11-08 11:10+05:30', '2025-11-08 11:50+05:30'),
-  ('job_mehta_ac_gas', 'hh_mehta', NULL, 'tech_anil', 'local', 'escalated', 'gas_refill',
-   'AC gas refill.',
+  ('job_mehta_ac_gas', 'hh_mehta', NULL, 'tech_anil', 'local', 'escalated', 'gas_top_up',
+   'AC gas top-up.',
    current_date - 40 + time '15:00', current_date - 41 + time '09:00', current_date - 41 + time '09:00',
    current_date - 41 + time '12:00', current_date - 40 + time '15:20', current_date - 40 + time '16:30'),
-  ('job_kulkarni_ac_gas', 'hh_kulkarni', NULL, 'tech_ramesh', 'local', 'closed', 'gas_refill', 'AC gas refill.',
+  ('job_kulkarni_ac_gas', 'hh_kulkarni', NULL, 'tech_ramesh', 'local', 'closed', 'gas_top_up', 'AC gas top-up.',
    '2025-10-04 11:00+05:30', '2025-10-03 09:00+05:30', NULL, NULL, NULL, '2025-10-04 12:00+05:30'),
-  ('job_deshpande_ac_gas', 'hh_deshpande', NULL, 'tech_ramesh', 'local', 'closed', 'gas_refill', 'AC gas refill.',
+  ('job_deshpande_ac_gas', 'hh_deshpande', NULL, 'tech_ramesh', 'local', 'closed', 'gas_top_up', 'AC gas top-up.',
    '2026-05-09 17:00+05:30', '2026-05-08 09:00+05:30', NULL, NULL, NULL, '2026-05-09 18:00+05:30');
 
 INSERT INTO price_ledger (id, household_id, job_id, technician_id, appliance_type, service_type, parts, labour, total, method, reported_by, confirmed, note, paid_at) VALUES
   -- Priya's own history (Tier 3)
-  ('pay_priya_ac_gas',    'hh_priya', 'job_priya_ac_gas_2025', 'tech_ramesh', 'ac',     'gas_refill',    NULL, NULL, 600, 'direct_upi',  'household', true, 'Paid Ramesh by UPI.', '2025-04-12 18:15+05:30'),
+  ('pay_priya_ac_gas',    'hh_priya', 'job_priya_ac_gas_2025', 'tech_ramesh', 'ac',     'gas_top_up',    NULL, NULL, 600, 'direct_upi',  'household', true, 'Paid Ramesh by UPI.', '2025-04-12 18:15+05:30'),
   ('pay_priya_fridge',    'hh_priya', 'job_priya_fridge_wire', 'tech_ramesh', 'fridge', 'wiring_repair', 100,  250,  350, 'direct_cash', 'household', true, NULL,                 '2025-11-08 11:55+05:30'),
   -- Neighbours (Tier 2: society average, needs >= 3 data points)
-  ('pay_mehta_ac_gas',     'hh_mehta',     'job_mehta_ac_gas',     'tech_anil',   'ac', 'gas_refill', NULL, NULL, 900, 'direct_cash', 'household', true, NULL, current_date - 40 + time '16:40'),
-  ('pay_kulkarni_ac_gas',  'hh_kulkarni',  'job_kulkarni_ac_gas',  'tech_ramesh', 'ac', 'gas_refill', NULL, NULL, 750, 'direct_upi',  'household', true, NULL, '2025-10-04 12:05+05:30'),
-  ('pay_deshpande_ac_gas', 'hh_deshpande', 'job_deshpande_ac_gas', 'tech_ramesh', 'ac', 'gas_refill', NULL, NULL, 800, 'direct_upi',  'household', true, NULL, '2026-05-09 18:05+05:30'),
+  ('pay_mehta_ac_gas',     'hh_mehta',     'job_mehta_ac_gas',     'tech_anil',   'ac', 'gas_top_up', NULL, NULL, 900, 'direct_cash', 'household', true, NULL, current_date - 40 + time '16:40'),
+  ('pay_kulkarni_ac_gas',  'hh_kulkarni',  'job_kulkarni_ac_gas',  'tech_ramesh', 'ac', 'gas_top_up', NULL, NULL, 750, 'direct_upi',  'household', true, NULL, '2025-10-04 12:05+05:30'),
+  ('pay_deshpande_ac_gas', 'hh_deshpande', 'job_deshpande_ac_gas', 'tech_ramesh', 'ac', 'gas_top_up', NULL, NULL, 800, 'direct_upi',  'household', true, NULL, '2026-05-09 18:05+05:30'),
   ('pay_mehta_ro',         'hh_mehta',     NULL, 'tech_suresh', 'ro_purifier', 'filter_replacement', 1500, NULL, 1500, 'direct_upi',  'household', true, NULL, '2026-02-14 11:00+05:30'),
   ('pay_kulkarni_ro',      'hh_kulkarni',  NULL, 'tech_suresh', 'ro_purifier', 'filter_replacement', 1350, NULL, 1350, 'direct_cash', 'household', true, NULL, '2026-04-20 11:00+05:30'),
   ('pay_deshpande_ro',     'hh_deshpande', NULL, 'tech_suresh', 'ro_purifier', 'filter_replacement', 1650, NULL, 1650, 'direct_upi',  'household', true, NULL, '2026-07-03 11:00+05:30');
@@ -107,7 +107,7 @@ INSERT INTO ratings (id, job_id, household_id, technician_id, on_time, fixed, fa
 -- Anil's unresolved dispute (with another household, not Priya).
 INSERT INTO complaints (id, job_id, household_id, technician_id, kind, description, status, created_at) VALUES
   ('cmp_mehta_anil', 'job_mehta_ac_gas', 'hh_mehta', 'tech_anil', 'repeat_fault',
-   'AC stopped cooling again 10 days after the gas refill. Technician not answering calls.',
+   'AC stopped cooling again 10 days after the gas top-up. Technician not answering calls.',
    'open', current_date - 30 + time '10:00');
 
 -- RO AMC reminder: Janus should remind Priya a day before Suresh's visit is due.
@@ -120,7 +120,9 @@ INSERT INTO checks (id, household_id, job_id, kind, due_at, payload) VALUES
 -- Labelled "reference data, team-collected". as_of is a placeholder until the teammate sends the full list.
 
 INSERT INTO reference_prices (appliance_type, service_type, city, parts_min, parts_max, labour_min, labour_max, total_min, total_max, source, as_of) VALUES
-  ('ac',          'gas_refill',         'Pune', NULL, NULL, NULL, NULL, 700,  850,  'reference data, team-collected', '2026-09-01'),
+  -- AC gas: a local technician's top-up and a full gas charge are different jobs with very different prices.
+  ('ac',          'gas_top_up',         'Pune', NULL, NULL, NULL, NULL, 700,  850,  'PLACEHOLDER — local top-up range, to be replaced from team calls to Pune technicians', '2026-09-01'),
+  ('ac',          'full_gas_charge',    'Pune', NULL, NULL, NULL, NULL, 1500, 2800, 'published prices: LG ₹1,500 (R22 split), LG ₹2,750 (inverter), Urban Company Pune ₹2,800', '2026-10-02'),
   ('ac',          'pcb_replacement',    'Pune', 3500, 4500, NULL, NULL, NULL, NULL, 'reference data, team-collected', '2026-09-01'),
   ('fridge',      'gas_refill',         'Pune', NULL, NULL, NULL, NULL, 800,  1000, 'reference data, team-collected', '2026-09-01'),
   ('ro_purifier', 'filter_replacement', 'Pune', 1200, 1800, NULL, NULL, NULL, NULL, 'reference data, team-collected', '2026-09-01');

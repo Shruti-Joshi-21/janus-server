@@ -10,7 +10,7 @@ If a name here differs from the prompt, the prompt is wrong.
 | `mcp_janus_core_pict` | Janus's database, people, jobs, payments, follow-up checks | **Live, 30 tools** |
 | `price_fairness_check` (inside janus_core) | Is this bill fair? | Planned (M5) |
 | `scenario_set` / `scenario_list` / `scenario_clear` / `reset_demo_data` (inside janus_core) | Trigger failures on demand, reset demo | Planned (M10) |
-| Twilio inbound webhook | Incoming WhatsApp → AgenticOrg workflow webhook | Planned (M4) |
+| Twilio inbound webhook `/api/twilio/inbound` | Incoming WhatsApp → JSON `{channel, from_phone, text, media_url, media_type, latitude, longitude, received_at, twilio_message_sid}` → Janus, either by AgenticOrg `POST /api/v1/workflows/{id}/run` (body `{payload: event}`, needs an admin API key) or by email to the Janus Gmail (subject `[janus-inbound] WhatsApp from +91…`, body = the JSON) | Built (M4); delivery route being set up |
 | `delhivery_janus` | Delhivery Maps mock | Planned (M7) |
 | `pinelabs_janus` | Pine Labs mandate / subscription / payout mock | Planned (M8) |
 | `janus_custom` | proof_of_presence, technician_discovery, technician_identity_check | Planned (M9) |
@@ -102,18 +102,28 @@ Phone numbers are **placeholders** until real ones are added; ids stay the same.
 | --- | --- | --- | --- | --- | --- | --- |
 | `tech_ramesh` | Ramesh Patil | +919000000011 | AC, fridge | text | yes | Priya's own technician (also recommended in society) |
 | `tech_suresh` | Suresh More | +919000000012 | RO | voice note | yes | Priya's RO AMC + society log (2 recommendations) |
-| `tech_anil` | Anil Kale | +919000000013 | AC | call | no | Society log; **1 open complaint** from another flat (gas refill failed again, not answering) |
+| `tech_anil` | Anil Kale | +919000000013 | AC | call | no | Society log; **1 open complaint** from another flat (gas top-up failed again, not answering) |
 
 **Past jobs and prices (Priya)**
 
 | Job | What | Technician | Paid | When | Rating |
 | --- | --- | --- | --- | --- | --- |
-| `job_priya_ac_gas_2025` | AC gas refill | Ramesh | ₹600 (UPI) | 12 Apr 2025 | on time, fixed, fair, reachable |
+| `job_priya_ac_gas_2025` | AC gas top-up (`gas_top_up`) | Ramesh | ₹600 (UPI) | 12 Apr 2025 | on time, fixed, fair, reachable |
 | `job_priya_fridge_wire` | Fridge wiring repair | Ramesh | ₹350 (₹100 parts + ₹250 labour, cash) | 8 Nov 2025 | on time, fixed, fair, reachable |
 
-Neighbours (3 other flats, never named to Priya) add AC gas refill payments of ₹750 / ₹800 / ₹900 and RO filter payments of ₹1,350 / ₹1,500 / ₹1,650 — enough for the society-average price tier.
+Neighbours (3 other flats, never named to Priya) add AC gas top-up payments of ₹750 / ₹800 / ₹900 and RO filter payments of ₹1,350 / ₹1,500 / ₹1,650 — enough for the society-average price tier.
 
-**Reference prices** (labelled "reference data, team-collected", Pune): AC gas refill ₹700–850 total; AC PCB parts ₹3,500–4,500; fridge gas refill ₹800–1,000 total; RO filter set ₹1,200–1,800 parts.
+**Service types matter for prices.** An AC **gas top-up** by a local technician (`gas_top_up`) and a **full gas charge** (`full_gas_charge`) are different jobs. Janus must pick the right one when opening a job or recording a bill, or an honest ₹1,500 full charge will look like a rip-off against top-up prices. Other service types: `pcb_replacement` (AC), `gas_refill` and `wiring_repair` (fridge), `filter_replacement` (RO).
+
+**Reference prices** (Pune, whole job unless marked parts):
+
+| Appliance | service_type | Range | Source |
+| --- | --- | --- | --- |
+| AC | `gas_top_up` | ₹700–850 | **Placeholder** until the team's calls to local technicians |
+| AC | `full_gas_charge` | ₹1,500–2,800 | Published: LG ₹1,500 (R22 split), LG ₹2,750 (inverter), Urban Company Pune ₹2,800 |
+| AC | `pcb_replacement` | ₹3,500–4,500 parts | Team-collected (fits inverter PCB ₹4,500; non-inverter is ~₹1,500) |
+| Fridge | `gas_refill` | ₹800–1,000 | Team-collected (LG ₹850; NoBroker higher at ₹1,400–1,800) |
+| RO | `filter_replacement` | ₹1,200–1,800 parts | Team-collected (Kent ₹525–650 per filter) |
 
 **Scheduled** `chk_priya_ro_amc` — reminder due the day after reset, 10:00 IST, about Suresh's RO visit.
 
@@ -480,7 +490,7 @@ Open a repair job. Use route 'brand' for appliances that must go to the brand's 
 | `technician_id` | string | no |  |
 | `route` | `"local"` \| `"brand"` | no | default `"local"` |
 | `urgent` | boolean | no | default `false` |
-| `service_type` | string | no | e.g. 'gas_refill', 'pcb_replacement', 'filter_replacement' |
+| `service_type` | string | no | e.g. AC: 'gas_top_up' (local top-up) or 'full_gas_charge' (full charging, much costlier), 'pcb_replacement'; fridge: 'gas_refill', 'wiring_repair'; RO: 'filter_replacement' |
 | `issue` | string | no | The problem in the household's words |
 | `brand_complaint_no` | string | no |  |
 
@@ -488,7 +498,7 @@ Open a repair job. Use route 'brand' for appliances that must go to the brand's 
 
 Example:
 ```json
-{"tool":"job_create","arguments":{"household_id":"hh_priya","appliance_id":"app_priya_ac","technician_id":"tech_ramesh","service_type":"gas_refill","issue":"AC not cooling","urgent":true}}
+{"tool":"job_create","arguments":{"household_id":"hh_priya","appliance_id":"app_priya_ac","technician_id":"tech_ramesh","service_type":"gas_top_up","issue":"AC not cooling","urgent":true}}
 ```
 
 ### `job_get`

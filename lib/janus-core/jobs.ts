@@ -59,7 +59,12 @@ export function registerJobTools(server: McpServer) {
       technician_id: z.string().optional(),
       route: z.enum(["local", "brand"]).default("local"),
       urgent: z.boolean().default(false),
-      service_type: z.string().optional().describe("e.g. 'gas_refill', 'pcb_replacement', 'filter_replacement'"),
+      service_type: z
+        .string()
+        .optional()
+        .describe(
+          "e.g. AC: 'gas_top_up' (local top-up) or 'full_gas_charge' (full charging, much costlier), 'pcb_replacement'; fridge: 'gas_refill', 'wiring_repair'; RO: 'filter_replacement'",
+        ),
       issue: z.string().optional().describe("The problem in the household's words"),
       brand_complaint_no: z.string().optional(),
     }),

@@ -3,7 +3,8 @@
 --   * ids are readable text: '<prefix>_<random>' (seed rows use names like 'hh_priya').
 --   * phone numbers are E.164 ('+91…'). Money is whole rupees (integer).
 --   * appliance_type values: 'ac', 'fridge', 'ro_purifier', 'washing_machine' (others allowed).
---   * service_type values are snake_case, e.g. 'gas_refill', 'pcb_replacement', 'filter_replacement'.
+--   * service_type values are snake_case, e.g. 'gas_top_up' / 'full_gas_charge' (AC),
+--     'gas_refill' (fridge), 'pcb_replacement', 'filter_replacement'.
 
 -- Short random id with a readable prefix, e.g. new_id('job') -> 'job_3f9a1c0b7d2e'
 CREATE OR REPLACE FUNCTION new_id(prefix text) RETURNS text AS $$
@@ -337,7 +338,8 @@ CREATE TABLE inbound_events (
   received_at         timestamptz NOT NULL DEFAULT now(),
   twilio_message_sid  text UNIQUE,
   raw                 jsonb NOT NULL DEFAULT '{}',
-  forward_status      integer,          -- HTTP status from AgenticOrg webhook
+  forward_via         text,             -- 'agenticorg' | 'email' | 'none'
+  forward_status      integer,          -- HTTP status from AgenticOrg, or 250 when the email was sent
   forward_error       text,
   created_at          timestamptz NOT NULL DEFAULT now()
 );

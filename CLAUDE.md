@@ -159,3 +159,13 @@ households, members, societies, appliances (type, brand, model, serial, purchase
 - Technicians: **Ramesh** (AC + fridge, known to Priya, prefers text, opted in, past jobs: AC gas refill ₹600 in Apr 2025, on time; fridge wire repair ₹350); **Suresh** (RO, society log + AMC); **Anil** (AC, society log, one unresolved dispute elsewhere); 3 entries in technician_directory near Baner for discovery.
 - Reference prices (labelled "reference data, team-collected"; teammate will send the full list): AC gas refill ₹700–850 Pune; AC PCB/motherboard ₹3,500–4,500 parts; fridge gas refill ₹800–1,000; RO filter set ₹1,200–1,800.
 - Merchant balance for payouts: ₹2,000 (so a ₹2,500 payout fails with insufficient balance).
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

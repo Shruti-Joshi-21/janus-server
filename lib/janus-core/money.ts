@@ -63,7 +63,7 @@ export function registerMoneyTools(server: McpServer) {
       const applianceType = a.appliance_type ?? appliance?.type;
       const serviceType = a.service_type ?? job.service_type;
       if (!applianceType) throw new ToolError("MISSING_APPLIANCE_TYPE", "The job has no appliance; pass appliance_type.");
-      if (!serviceType) throw new ToolError("MISSING_SERVICE_TYPE", "The job has no service_type; pass service_type (e.g. 'gas_refill').");
+      if (!serviceType) throw new ToolError("MISSING_SERVICE_TYPE", "The job has no service_type; pass service_type (e.g. 'gas_top_up').");
 
       const [payment] = await sql`
         INSERT INTO price_ledger (household_id, job_id, technician_id, appliance_type, service_type, parts, labour, total,
