@@ -10,7 +10,7 @@ If a name here differs from the prompt, the prompt is wrong.
 | `mcp_janus_core_pict` | Janus's database, people, jobs, payments, follow-up checks | **Live, 30 tools** |
 | `price_fairness_check` (inside janus_core) | Is this bill fair? | Planned (M5) |
 | `scenario_set` / `scenario_list` / `scenario_clear` / `reset_demo_data` (inside janus_core) | Trigger failures on demand, reset demo | Planned (M10) |
-| Twilio inbound webhook `/api/twilio/inbound` | Incoming WhatsApp → JSON `{channel, from_phone, text, media_url, media_type, latitude, longitude, received_at, twilio_message_sid}` → Janus, either by AgenticOrg `POST /api/v1/workflows/{id}/run` (body `{payload: event}`, needs an admin API key) or by email to the Janus Gmail (subject `[janus-inbound] WhatsApp from +91…`, body = the JSON) | Built (M4); delivery route being set up |
+| Twilio inbound webhook `/api/twilio/inbound` | Incoming WhatsApp → JSON `{channel, from_phone, text, media_url, media_type, latitude, longitude, received_at, twilio_message_sid}` → Janus, either by AgenticOrg `POST /api/v1/workflows/{id}/run` (body `{payload: event}`, needs an admin API key) or by email to the Janus Gmail (subject `[janus-inbound] WhatsApp from +91…`, body = the JSON) | **Live** via Gmail: every message arrives at janus.pict.demo@gmail.com |
 | `delhivery_janus` | Delhivery Maps mock | Planned (M7) |
 | `pinelabs_janus` | Pine Labs mandate / subscription / payout mock | Planned (M8) |
 | `janus_custom` | proof_of_presence, technician_discovery, technician_identity_check | Planned (M9) |
@@ -22,7 +22,7 @@ When new tools are added to a connector, AgenticOrg only sees them after the con
 
 - **Every answer is JSON.** Success: `{"ok": true, ...}`. Failure: `{"ok": false, "error_code": "JOB_NOT_FOUND", "message": "No job with id \"job_x\"."}` — some failures add extra fields (listed under Error codes). Janus should read `ok` first, never assume success.
 - **Bad input** (missing field, wrong type, unknown key, bad date) → `error_code: "INVALID_INPUT"` with a message naming the field.
-- **Phone numbers**: E.164 (`+919000000001`). Tools also accept `9000000001`, `+91 90000 00001`, `whatsapp:+919000000001` and always return the normalised form.
+- **Phone numbers**: E.164 (`+918530921384`). Tools also accept `9000000001`, `+91 90000 00001`, `whatsapp:+918530921384` and always return the normalised form.
 - **Money**: whole rupees, integers (`650`, not `"₹650"` or `650.00`).
 - **Ids** are readable strings with a prefix: `hh_` household, `mem_` member, `app_` appliance, `tech_` technician, `job_`, `pay_`, `rate_`, `cmp_` complaint, `chk_` check, `ntf_` notification, `soc_` society.
 - **Times** come back as ISO in UTC (`2026-10-03T11:30:00.000Z` = 5:00 PM IST). Send times as ISO **with offset**, e.g. `2026-10-03T17:00:00+05:30`. Dates are `YYYY-MM-DD`. "Today" (warranty, AMC due) is worked out in India time.
@@ -76,7 +76,7 @@ If your eval cases use other words: requested → `new`, assigned → `contactin
 
 ## Demo data (after a reset)
 
-Phone numbers are **placeholders** until real ones are added; ids stay the same.
+Real phones: **Priya = Shruti** (+918530921384), **Ramesh = Aarya** (+918369502720), **Suresh = Gayatri** (+918308407020). Rohan and Anil are still **placeholders** (+9190000000xx); ids stay the same.
 
 **Society** `soc_sai_heights` — Sai Heights, Baner, Pune 411045.
 
@@ -84,7 +84,7 @@ Phone numbers are **placeholders** until real ones are added; ids stay the same.
 
 | Member | Id | Phone | Role |
 | --- | --- | --- | --- |
-| Priya | `mem_priya` | +919000000001 | decider |
+| Priya | `mem_priya` | +918530921384 | decider |
 | Rohan (husband) | `mem_rohan` | +919000000002 | decider |
 
 **Appliances** (4)
@@ -100,8 +100,8 @@ Phone numbers are **placeholders** until real ones are added; ids stay the same.
 
 | Id | Name | Phone | Fixes | Contact | Opted in | Where from |
 | --- | --- | --- | --- | --- | --- | --- |
-| `tech_ramesh` | Ramesh Patil | +919000000011 | AC, fridge | text | yes | Priya's own technician (also recommended in society) |
-| `tech_suresh` | Suresh More | +919000000012 | RO | voice note | yes | Priya's RO AMC + society log (2 recommendations) |
+| `tech_ramesh` | Ramesh Patil | +918369502720 | AC, fridge | text | yes | Priya's own technician (also recommended in society) |
+| `tech_suresh` | Suresh More | +918308407020 | RO | voice note | yes | Priya's RO AMC + society log (2 recommendations) |
 | `tech_anil` | Anil Kale | +919000000013 | AC | call | no | Society log; **1 open complaint** from another flat (gas top-up failed again, not answering) |
 
 **Past jobs and prices (Priya)**
@@ -184,7 +184,7 @@ Who is this phone number? Returns type 'member' (with household), 'technician', 
 
 Example:
 ```json
-{"tool":"get_party_by_phone","arguments":{"phone":"+919000000001"}}
+{"tool":"get_party_by_phone","arguments":{"phone":"+918530921384"}}
 ```
 
 ### `household_create`
@@ -556,7 +556,7 @@ Open jobs (not closed or cancelled) for a phone number: the household's jobs if 
 
 Example:
 ```json
-{"tool":"jobs_open_for_party","arguments":{"phone":"+919000000011"}}
+{"tool":"jobs_open_for_party","arguments":{"phone":"+918369502720"}}
 ```
 
 ### `ledger_get_history`
