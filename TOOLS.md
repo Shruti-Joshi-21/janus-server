@@ -12,7 +12,7 @@ If a name here differs from the prompt, the prompt is wrong.
 | `delhivery_janus` | Delhivery Maps mock | Planned (M7) |
 | `pinelabs_janus` | Pine Labs mandate / subscription / payout mock | Planned (M8) |
 | `janus_custom` | proof_of_presence, technician_discovery, technician_identity_check | Planned (M9) |
-| Gnani | Speech-to-text / text-to-speech | Planned (M6) |
+| `mcp_gnani_janus_pict` | Real Gnani speech-to-text (WhatsApp voice notes) and text-to-speech (voice replies) | **Built (M6), 2 tools**; register as `gnani_janus_pict` |
 
 When new tools are added to a connector, AgenticOrg only sees them after the connector is archived and registered again (same name).
 
@@ -86,6 +86,14 @@ If your eval cases use other words: requested → `new`, assigned → `contactin
 6. Reference prices carry a note (e.g. "Starting price", "GST extra"); it is added to `explanation_en` and returned as `context.reference_note`. Elapsed time for price rises is counted in whole months.
 
 Worked examples (demo data): AC `gas_top_up` ₹650 → fair (Priya paid ₹600 in Apr 2025 ≈ ₹669 today); ₹900 → high (+35%); ₹1,500 → high + hint `full_gas_charge`; AC `full_gas_charge` ₹2,000 → fair (reference); AC `pcb_replacement` ₹7,500 → high (+67%); RO `filter_replacement` ₹1,500 → fair (society average); fridge `gas_refill` ₹550 → low; geyser heating element → insufficient_data.
+
+## Voice notes with Gnani
+
+- **Incoming voice note**: the WhatsApp event has `media_url` and `media_type` (e.g. `audio/ogg`). Call `gnani_speech_to_text {media_url, language_hint}` with the **household's language**. Tested on the same Marathi clip: `mr-IN` → "नमस्कार प्रिया रमेश उद्या संध्याकाळी पाच वाजता येई" (near perfect); `hi-IN` → "…संध्याकाली पाच वाजता ही।" (pushed toward Hindi). So the hint matters.
+- The transcript is Gnani's real output, never corrected. Gnani returns no detected language or confidence (both `null`), so if the text looks wrong or `empty` is true, Janus should ask the household to confirm or type.
+- **Voice reply**: `gnani_text_to_speech {text, language}` returns `audio_url`; send it as media with the Twilio connector. Languages: mr-IN, hi-IN, en-IN, `hi-en` (Hinglish), `auto`, and other Indian languages. Default voices: Zahira (Marathi), Nalini (Hindi), Kaveri (English), Poorvi (Hinglish).
+- Limits: audio up to 60 seconds; text up to 1,000 characters. Gnani rate-limits bursts (`GNANI_RATE_LIMITED`); wait a few seconds and retry.
+- Errors: `GNANI_TIMEOUT`, `GNANI_RATE_LIMITED`, `GNANI_AUTH_FAILED`, `GNANI_ERROR`, `GNANI_MALFORMED_RESPONSE`, `GNANI_UNREACHABLE`, `MEDIA_DOWNLOAD_FAILED`, `UNSUPPORTED_MEDIA_TYPE` (e.g. a photo), `MEDIA_TOO_LARGE`, `INVALID_MEDIA_URL`, `INVALID_VOICE` (+ `voices_for_language`).
 
 ## Demo data (after a reset)
 
@@ -201,8 +209,8 @@ Neighbours (3 other flats, never named to Priya) add AC gas top-up payments of �
 | `custom.next_presence` | not_present, no_location, stale_location, timeout | proof_of_presence | M9 |
 | `custom.next_discovery` | none_found, timeout | technician_discovery | M9 |
 | `custom.next_identity` | verified, not_found, mismatch, timeout | technician_identity_check | M9 |
-| `gnani.next_stt` | timeout, malformed, low_confidence | gnani_speech_to_text | M6 |
-| `gnani.next_tts` | timeout, malformed | gnani_text_to_speech | M6 |
+| `gnani.next_stt` | timeout, malformed, low_confidence | gnani_speech_to_text | **yes** |
+| `gnani.next_tts` | timeout, malformed | gnani_text_to_speech | **yes** |
 
 The switches exist now; each mock starts obeying its keys when that milestone is built. Mocks also fail on their own for realistic inputs (unknown address, ₹2,500 payout vs ₹2,000 balance, …) without any switch.
 
@@ -879,6 +887,44 @@ DANGER: wipes ALL data (jobs, payments, messages, scenario switches) and restore
 Example:
 ```json
 {"tool":"reset_demo_data","arguments":{"confirm":"RESET"}}
+```
+
+## Connector `mcp_gnani_janus_pict` — 2 tools
+
+URL: `https://janus-server.vercel.app/gnani/mcp` (server name `gnani_janus`)
+
+### `gnani_speech_to_text`
+
+Transcribe a WhatsApp voice note with Gnani. Pass the media_url from the incoming message and the household's language. Returns Gnani's transcript exactly as given (never corrected). Gnani does not report the detected language or a confidence score, so those are null. Max 60 seconds of audio. Note: Gnani may push Marathi toward Hindi and can stumble on mid-sentence code-switching; if the text looks wrong, ask the household to confirm.
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `media_url` | string | yes | MediaUrl0 from the incoming WhatsApp message (Twilio), or a janus-audio Blob URL |
+| `language_hint` | `"mr-IN"` \| `"hi-IN"` \| `"en-IN"` \| `"bn-IN"` \| `"gu-IN"` \| `"kn-IN"` \| `"ml-IN"` \| `"pa-IN"` \| `"ta-IN"` \| `"te-IN"` | no | Language spoken. Pune households: mr-IN (Marathi), hi-IN (Hindi), en-IN (English); default `"mr-IN"` |
+
+**Returns** (besides `ok: true`): `text` (Gnani's transcript, unedited), `language_detected` (always null: Gnani doesn't report it), `confidence` (null; 0.31 only under the low_confidence switch), `empty`, `language_used`, `gnani_request_id`, `gnani_model`, `audio_bytes`, `took_ms`, `partner: "Gnani"`
+
+Example:
+```json
+{"tool":"gnani_speech_to_text","arguments":{"media_url":"https://api.twilio.com/2010-04-01/Accounts/AC…/Messages/MM…/Media/ME…","language_hint":"mr-IN"}}
+```
+
+### `gnani_text_to_speech`
+
+Turn text into a WhatsApp voice note with Gnani (OGG/Opus) and return a public audio_url to send as media. language: mr-IN, hi-IN, en-IN, bn-IN, gu-IN, kn-IN, ml-IN, pa-IN, ta-IN, te-IN, hi-en, auto ('hi-en' = Hinglish). Default voices: Marathi Zahira, Hindi Nalini, English Kaveri, Hinglish Poorvi.
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `text` | string | yes |  |
+| `language` | `"mr-IN"` \| `"hi-IN"` \| `"en-IN"` \| `"bn-IN"` \| `"gu-IN"` \| `"kn-IN"` \| `"ml-IN"` \| `"pa-IN"` \| `"ta-IN"` \| `"te-IN"` \| `"hi-en"` \| `"auto"` | yes |  |
+| `voice` | string | no | A Gnani voice for that language, e.g. mr-IN: Zahira (f), Ishaan (m) |
+| `speed` | number | no | default `1` |
+
+**Returns** (besides `ok: true`): `audio_url` (public OGG/Opus link, send it as WhatsApp media), `content_type`, `bytes`, `language`, `voice`, `took_ms`, `partner: "Gnani"`
+
+Example:
+```json
+{"tool":"gnani_text_to_speech","arguments":{"text":"नमस्कार प्रिया, रमेश उद्या संध्याकाळी पाच वाजता येईल.","language":"mr-IN"}}
 ```
 
 <!-- TOOLS:END -->

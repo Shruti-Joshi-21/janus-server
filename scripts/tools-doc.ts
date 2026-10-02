@@ -18,6 +18,7 @@ type Tool = { name: string; description?: string; inputSchema: JsonSchema };
 
 const CONNECTORS: Record<string, { path: string; connector: string }> = {
   janus_core: { path: "/janus-core/mcp", connector: "mcp_janus_core_pict" },
+  gnani_janus: { path: "/gnani/mcp", connector: "mcp_gnani_janus_pict" },
 };
 
 // What each tool returns (besides ok:true) and one example call. Keep in step with lib/janus-core/.
@@ -65,6 +66,15 @@ const NOTES: Record<string, { returns: string; example: Record<string, unknown> 
   scenario_list: { returns: "`active[]` {key, value, uses_left, created_at}, `catalog` {key: {values[], description}}", example: {} },
   scenario_clear: { returns: "`cleared[]` (keys removed)", example: { key: "pinelabs.next_payout" } },
   reset_demo_data: { returns: "`reset: true`, `took_ms`", example: { confirm: "RESET" } },
+  gnani_speech_to_text: {
+    returns:
+      "`text` (Gnani's transcript, unedited), `language_detected` (always null: Gnani doesn't report it), `confidence` (null; 0.31 only under the low_confidence switch), `empty`, `language_used`, `gnani_request_id`, `gnani_model`, `audio_bytes`, `took_ms`, `partner: \"Gnani\"`",
+    example: { media_url: "https://api.twilio.com/2010-04-01/Accounts/AC…/Messages/MM…/Media/ME…", language_hint: "mr-IN" },
+  },
+  gnani_text_to_speech: {
+    returns: "`audio_url` (public OGG/Opus link, send it as WhatsApp media), `content_type`, `bytes`, `language`, `voice`, `took_ms`, `partner: \"Gnani\"`",
+    example: { text: "नमस्कार प्रिया, रमेश उद्या संध्याकाळी पाच वाजता येईल.", language: "mr-IN" },
+  },
   checks_due: { returns: "`now`, `count`, `checks[]` (with job_state, technician_id)", example: {} },
   check_done: { returns: "`check`", example: { check_id: "chk_…", outcome: "Ramesh replied, slot 5 PM" } },
 };
