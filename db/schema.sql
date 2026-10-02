@@ -220,6 +220,7 @@ CREATE TABLE reference_prices (
   total_max       integer,
   source          text NOT NULL,
   as_of           date NOT NULL,
+  note            text,          -- e.g. "Starting price", "GST extra"; shown in price_fairness_check explanations
   UNIQUE (appliance_type, service_type, city)
 );
 

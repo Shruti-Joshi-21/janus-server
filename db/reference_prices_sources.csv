@@ -1,0 +1,42 @@
+Appliance,Job,Parts ₹,Labour ₹,Total ₹,Source,Source link / phone,Date checked,Notes
+AC,Gas refill,,,900,Household interview,Round 1 interview notes,[interview date],Fill parts/labour split if notes have it
+AC,Motherboard (PCB) repair,,,4000,Household interview,Round 1 interview notes,[interview date],
+AC,Inflated quote (same job as above),,,7500,Household interview,Round 1 interview notes,[interview date],Example of overcharging
+TV,Repair,,,300,Household interview,Round 1 interview notes,[interview date],
+AC,Visit / repair check-up,,299,299,Urban Company Pune,https://www.urbancompany.com/pune-ac-service-repair,2026-10-02,"""Starts at"" price; parts extra"
+AC,General service (foam-jet; single split AC),,649,649,Urban Company Pune,https://www.urbancompany.com/pune-ac-service-repair,2026-10-02,"""Starts at""; Power Jet split service listed at 549"
+AC,Gas refill & check-up (full gas charging),,,2800,Urban Company Pune,https://www.urbancompany.com/pune-ac-service-repair,2026-10-02,Full charging; not a local top-up
+AC,PCB repair (non-inverter),1500,,1500,Urban Company Pune,https://www.urbancompany.com/pune-ac-service-repair,2026-10-02,Listed under spare parts
+AC,PCB repair (inverter),4500,,4500,Urban Company Pune,https://www.urbancompany.com/pune-ac-service-repair,2026-10-02,Listed under spare parts
+AC,Capacitor replacement,599-749,,599-749,Urban Company Pune,https://www.urbancompany.com/pune-ac-service-repair,2026-10-02,Range across capacitor types
+AC,Visit / repair charge (split AC; in-home),,750,750,LG official rate card,https://www.lg.com/in/support/warranty-terms-new/,2026-10-02,"Effective 17 Feb 2026; GST extra; parts extra"
+AC,Gas charging (split AC; R22),,,1500,LG official rate card,https://www.lg.com/in/support/warranty-terms-new/,2026-10-02,Effective 17 Feb 2026; GST extra
+AC,Gas charging (inverter AC),,,2750,LG official rate card,https://www.lg.com/in/support/warranty-terms-new/,2026-10-02,Effective 17 Feb 2026; GST extra
+RO,Visit / repair check-up,,299,299,Urban Company Pune,https://www.urbancompany.com/pune-ro-repair,2026-10-02,
+RO,Complete filter replacement,,,4199,Urban Company Pune,https://www.urbancompany.com/pune-ro-repair,2026-10-02,"NATIVE brand spares; 1-year warranty"
+RO,Visit charge (domestic RO & UV),,350,350,Kent official spare price list,https://www.kent.co.in/pages/kent-spare-parts-price-list,2026-10-02,List effective 02/03/2026
+RO,RO membrane (8-inch high flow),3375,,3375,Kent official spare price list,https://www.kent.co.in/pages/kent-spare-parts-price-list,2026-10-02,Other Kent membranes 3100-3675
+RO,Inline sediment filter (8-inch),650,,650,Kent official spare price list,https://www.kent.co.in/pages/kent-spare-parts-price-list,2026-10-02,
+RO,Inline carbon filter (8-inch),650,,650,Kent official spare price list,https://www.kent.co.in/pages/kent-spare-parts-price-list,2026-10-02,
+RO,Post carbon filter,525,,525,Kent official spare price list,https://www.kent.co.in/pages/kent-spare-parts-price-list,2026-10-02,
+RO,UF membrane (8-inch),1225,,1225,Kent official spare price list,https://www.kent.co.in/pages/kent-spare-parts-price-list,2026-10-02,
+RO,Non-comprehensive AMC (Grand/Pearl range),,,2000,Kent official spare price list,https://www.kent.co.in/pages/kent-spare-parts-price-list,2026-10-02,"Listed as GPMRO/Pearl; confirm Grand Plus falls here"
+RO,Visit / repair charge (water purifier; in-home),,550,550,LG official rate card,https://www.lg.com/in/support/warranty-terms-new/,2026-10-02,GST extra
+Fridge,Visit / check-up,,199,199,Urban Company Pune,https://www.urbancompany.com/pune-refrigerator-repair,2026-10-02,"Starts at; Rs 249 service charge absorbed if repaired; full rate card only in app"
+Fridge,Visit / check-up,,199,199,NoBroker Pune,https://www.nobroker.in/appliance-services/refrigerator-repair/pune,2026-10-02,Adjusted against final bill
+Fridge,Gas refill (single door),,,1400,NoBroker Pune,https://www.nobroker.in/appliance-services/refrigerator-repair/pune,2026-10-02,
+Fridge,Gas refill (double door),,,1800,NoBroker Pune,https://www.nobroker.in/appliance-services/refrigerator-repair/pune,2026-10-02,
+Fridge,Compressor replacement (double door),,,5800,NoBroker Pune,https://www.nobroker.in/appliance-services/refrigerator-repair/pune,2026-10-02,"Incl. relay, OLP, capacitor; single door 5350"
+Fridge,Thermostat (standard),690-780,,690-780,NoBroker Pune,https://www.nobroker.in/appliance-services/refrigerator-repair/pune,2026-10-02,
+Fridge,Visit / repair charge (frost-free up to 300L; in-home),,650,650,LG official rate card,https://www.lg.com/in/support/warranty-terms-new/,2026-10-02,301-400L: 700; above 400L: 800; GST extra
+Fridge,Gas charging (direct cool / frost-free),,,850,LG official rate card,https://www.lg.com/in/support/warranty-terms-new/,2026-10-02,GST extra
+Washing machine,Visit / check-up,,199,199,Urban Company Pune,https://www.urbancompany.com/pune-washing-machine-repair,2026-10-02,Inspection Rs 299 if no repair done; flat labour Rs 249
+Washing machine,General service (jet service),,1099,1099,Urban Company Pune,https://www.urbancompany.com/pune-washing-machine-repair,2026-10-02,Starts at
+Washing machine,Drain motor (AC type),,,1300,NoBroker Pune,https://www.nobroker.in/appliance-services/washing-machine/repair/pune,2026-10-02,"""Onwards""; DC type 1400; double-way drain pump 2150"
+Washing machine,PCB repair (front load),,,2600,NoBroker Pune,https://www.nobroker.in/appliance-services/washing-machine/repair/pune,2026-10-02,"""Onwards""; top load 1575"
+Washing machine,Main motor,,,1950,NoBroker Pune,https://www.nobroker.in/appliance-services/washing-machine/repair/pune,2026-10-02,"""Onwards"""
+Washing machine,Visit / repair charge (front load; in-home),,750,750,LG official rate card,https://www.lg.com/in/support/warranty-terms-new/,2026-10-02,GST extra; parts extra
+Geyser,Visit / check-up,,249,249,Urban Company Pune,https://www.urbancompany.com/pune-geyser-reapir,2026-10-02,Adjusted in final repair quote
+Geyser,Service incl. descaling,,599,599,Urban Company Pune,https://www.urbancompany.com/pune-geyser-reapir,2026-10-02,Starts at
+Geyser,Heating element,,,,NOT FOUND ONLINE,,2026-10-02,Get from technician calls
+Geyser,Thermostat,,,,NOT FOUND ONLINE,,2026-10-02,Get from technician calls

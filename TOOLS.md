@@ -7,8 +7,7 @@ If a name here differs from the prompt, the prompt is wrong.
 
 | Connector on AgenticOrg | What | Status |
 | --- | --- | --- |
-| `mcp_janus_core_pict` | Janus's database, people, jobs, payments, follow-up checks | **Live, 30 tools** |
-| `price_fairness_check` (inside janus_core) | Is this bill fair? | Planned (M5) |
+| `mcp_janus_core_pict` | Janus's database, people, jobs, payments, follow-up checks, price fairness | **Live, 31 tools** (re-register the connector to see `price_fairness_check`) |
 | `scenario_set` / `scenario_list` / `scenario_clear` / `reset_demo_data` (inside janus_core) | Trigger failures on demand, reset demo | Planned (M10) |
 | Twilio inbound webhook `/api/twilio/inbound` | Incoming WhatsApp → JSON `{channel, from_phone, text, media_url, media_type, latitude, longitude, received_at, twilio_message_sid}` → Janus, either by AgenticOrg `POST /api/v1/workflows/{id}/run` (body `{payload: event}`, needs an admin API key) or by email to the Janus Gmail (subject `[janus-inbound] WhatsApp from +91…`, body = the JSON) | **Live** via Gmail: every message arrives at janus.pict.demo@gmail.com |
 | `delhivery_janus` | Delhivery Maps mock | Planned (M7) |
@@ -74,6 +73,21 @@ If your eval cases use other words: requested → `new`, assigned → `contactin
 | `INVALID_REFERENCE`, `DUPLICATE`, `INVALID_VALUE` | Database refused the value (e.g. unknown technician id inside `fields`) | — |
 | `INTERNAL_ERROR` | Bug on our side — tell Track A | — |
 
+## How `price_fairness_check` decides
+
+1. **Where "expected" comes from** (first that has data wins → `tier_used`):
+   - `household_history`: this household's confirmed past payments for the same appliance + service, grown forward by the inflation buffer (parts 6%/yr, labour 8%/yr, compounded; placeholder rates). No parts/labour split → the higher rate.
+   - `society_average`: other households in the same society, only with **3+ payments**. Range = average ± 15%. Never names a household or shows one household's amount.
+   - `reference_prices`: the reference table (see Demo data).
+2. **Verdict**: above `expected_max` by up to 15% → `slightly_high`; more → `high`; more than 25% below `expected_min` → `low` (suspiciously cheap); otherwise `fair`. No data → `insufficient_data` (with `known_service_types`).
+3. **Parts and labour** are judged separately when given; the worst one decides (`compared`), naming parts/labour over the total on a tie.
+4. **Wrong job type**: if a high bill fits another job's reference range, `alternative_service_types` lists it. Janus should ask which job was done (e.g. a ₹1,500 "top-up" may really be a full gas charge) before calling it a rip-off.
+5. `explanation_en` is safe to paraphrase to the household in their language.
+
+6. Reference prices carry a note (e.g. "Starting price", "GST extra"); it is added to `explanation_en` and returned as `context.reference_note`. Elapsed time for price rises is counted in whole months.
+
+Worked examples (demo data): AC `gas_top_up` ₹650 → fair (Priya paid ₹600 in Apr 2025 ≈ ₹669 today); ₹900 → high (+35%); ₹1,500 → high + hint `full_gas_charge`; AC `full_gas_charge` ₹2,000 → fair (reference); AC `pcb_replacement` ₹7,500 → high (+67%); RO `filter_replacement` ₹1,500 → fair (society average); fridge `gas_refill` ₹550 → low; geyser heating element → insufficient_data.
+
 ## Demo data (after a reset)
 
 Real phones: **Priya = Shruti** (+918530921384), **Ramesh = Aarya** (+918369502720), **Suresh = Gayatri** (+918308407020). Rohan and Anil are still **placeholders** (+9190000000xx); ids stay the same.
@@ -113,17 +127,36 @@ Real phones: **Priya = Shruti** (+918530921384), **Ramesh = Aarya** (+9183695027
 
 Neighbours (3 other flats, never named to Priya) add AC gas top-up payments of ₹750 / ₹800 / ₹900 and RO filter payments of ₹1,350 / ₹1,500 / ₹1,650 — enough for the society-average price tier.
 
-**Service types matter for prices.** An AC **gas top-up** by a local technician (`gas_top_up`) and a **full gas charge** (`full_gas_charge`) are different jobs. Janus must pick the right one when opening a job or recording a bill, or an honest ₹1,500 full charge will look like a rip-off against top-up prices. Other service types: `pcb_replacement` (AC), `gas_refill` and `wiring_repair` (fridge), `filter_replacement` (RO).
+**Service types matter for prices.** An AC **gas top-up** by a local technician (`gas_top_up`) and a **full gas charge** (`full_gas_charge`) are different jobs. Janus must pick the right one when opening a job or recording a bill, or an honest ₹1,500 full charge will look like a rip-off against top-up prices. Use these exact `service_type` names (the price check only finds prices for exact names; `appliance_type` is `ac`, `ro_purifier`, `fridge`, `washing_machine`, `geyser`, `tv`).
 
-**Reference prices** (Pune, whole job unless marked parts):
+**Reference prices** (Pune; team-collected S1 list, every row traceable in `db/reference_prices_sources.csv`). Whole job unless marked *parts*.
 
-| Appliance | service_type | Range | Source |
-| --- | --- | --- | --- |
-| AC | `gas_top_up` | ₹700–850 | **Placeholder** until the team's calls to local technicians |
-| AC | `full_gas_charge` | ₹1,500–2,800 | Published: LG ₹1,500 (R22 split), LG ₹2,750 (inverter), Urban Company Pune ₹2,800 |
-| AC | `pcb_replacement` | ₹3,500–4,500 parts | Team-collected (fits inverter PCB ₹4,500; non-inverter is ~₹1,500) |
-| Fridge | `gas_refill` | ₹800–1,000 | Team-collected (LG ₹850; NoBroker higher at ₹1,400–1,800) |
-| RO | `filter_replacement` | ₹1,200–1,800 parts | Team-collected (Kent ₹525–650 per filter) |
+| Appliance | service_type | Range | Source | Note |
+| --- | --- | --- | --- | --- |
+| AC | `gas_top_up` | ₹700–900 | Household interview ₹900; **₹700 is a placeholder** | Local top-up, not full charging; to be replaced from technician calls |
+| AC | `full_gas_charge` | ₹1,500–2,800 | LG ₹1,500 (R22), ₹2,750 (inverter); Urban Company ₹2,800 | GST extra on LG |
+| AC | `pcb_replacement` | ₹1,500–4,500 | Urban Company non-inverter ₹1,500, inverter ₹4,500; interview ₹4,000 | A ₹7,500 quote was reported as overcharging |
+| AC | `capacitor_replacement` | ₹599–749 | Urban Company | |
+| AC | `visit_checkup` | ₹299–750 | Urban Company ₹299; LG ₹750 | Parts extra |
+| AC | `general_service` | ₹549–649 | Urban Company | Starting prices |
+| RO | `filter_replacement` | ₹1,300–1,825 *parts* | Kent: sediment ₹650, carbon ₹650, post-carbon ₹525 | 2–3 filter set |
+| RO | `complete_filter_replacement` | ₹4,199 | Urban Company | Native spares, 1-yr warranty |
+| RO | `membrane_replacement` | ₹3,100–3,675 *parts* | Kent | |
+| RO | `uf_membrane_replacement` | ₹1,225 *parts* | Kent | |
+| RO | `visit_checkup` | ₹299–550 | Urban Company ₹299; Kent ₹350; LG ₹550 | |
+| RO | `amc_annual` | ₹2,000 | Kent non-comprehensive AMC | Confirm Grand Plus is in this range |
+| Fridge | `gas_refill` | ₹850–1,800 | LG ₹850; NoBroker ₹1,400 (single door), ₹1,800 (double door) | |
+| Fridge | `compressor_replacement` | ₹5,350–5,800 | NoBroker | Incl. relay, OLP, capacitor |
+| Fridge | `thermostat_replacement` | ₹690–780 | NoBroker | |
+| Fridge | `visit_checkup` | ₹199–800 | Urban Company / NoBroker ₹199; LG ₹650–800 | |
+| Fridge | `wiring_repair` | — | (only Priya's own history) | |
+| Washing machine | `drain_motor_replacement` | ₹1,300–2,150 | NoBroker | Starting prices |
+| Washing machine | `pcb_replacement` | ₹1,575–2,600 | NoBroker (top load / front load) | Starting prices |
+| Washing machine | `main_motor_replacement` | ₹1,950 | NoBroker | Starting price |
+| Washing machine | `general_service` | ₹1,099 | Urban Company | Starting price |
+| Washing machine | `visit_checkup` | ₹199–750 | Urban Company; LG | |
+| Geyser | `visit_checkup` / `general_service` | ₹249 / ₹599 | Urban Company | Heating element & thermostat: not found online yet |
+| TV | `general_repair` | ₹300 | Household interview | Single figure |
 
 **Scheduled** `chk_priya_ro_amc` — reminder due the day after reset, 10:00 IST, about Suresh's RO visit.
 
@@ -155,7 +188,7 @@ Neighbours (3 other flats, never named to Priya) add AC gas top-up payments of �
 
 <!-- TOOLS:START (generated by `npm run docs:tools`, do not edit by hand) -->
 
-## Connector `mcp_janus_core_pict` — 30 tools
+## Connector `mcp_janus_core_pict` — 31 tools
 
 URL: `https://janus-server.vercel.app/janus-core/mcp` (server name `janus_core`)
 
@@ -184,7 +217,7 @@ Who is this phone number? Returns type 'member' (with household), 'technician', 
 
 Example:
 ```json
-{"tool":"get_party_by_phone","arguments":{"phone":"+918530921384"}}
+{"tool":"get_party_by_phone","arguments":{"phone":"+919000000001"}}
 ```
 
 ### `household_create`
@@ -556,7 +589,7 @@ Open jobs (not closed or cancelled) for a phone number: the household's jobs if 
 
 Example:
 ```json
-{"tool":"jobs_open_for_party","arguments":{"phone":"+918369502720"}}
+{"tool":"jobs_open_for_party","arguments":{"phone":"+919000000011"}}
 ```
 
 ### `ledger_get_history`
@@ -657,6 +690,26 @@ Change a complaint's status (open, in_progress, resolved, closed), resolution or
 Example:
 ```json
 {"tool":"complaint_update","arguments":{"complaint_id":"cmp_…","fields":{"status":"resolved","resolution":"Free revisit done"}}}
+```
+
+### `price_fairness_check`
+
+Is this bill fair? Compares it with (1) this household's own past payments for the same job, adjusted for price rises, else (2) the society average (needs 3+ payments; only the average is used, never a neighbour's bill), else (3) reference prices. Parts and labour are judged separately when given. Verdict: fair, slightly_high (up to 15% above expected), high, low (25%+ below, suspiciously cheap) or insufficient_data. Use the exact service_type (AC 'gas_top_up' vs 'full_gas_charge' are different jobs); if a bill fits another job's range, alternative_service_types says so.
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `household_id` | string | yes |  |
+| `appliance_type` | string | yes |  |
+| `service_type` | string | yes |  |
+| `total_amount` | integer | yes | Whole rupees |
+| `parts_amount` | integer | no |  |
+| `labour_amount` | integer | no |  |
+
+**Returns** (besides `ok: true`): `verdict` ('fair'|'slightly_high'|'high'|'low'|'insufficient_data'), `tier_used` ('household_history'|'society_average'|'reference_prices'|null), `expected_min`, `expected_max`, `last_paid`?, `last_paid_date`?, `difference_pct`, `explanation_en` (ready to paraphrase to the household), `compared` ('total'|'parts'|'labour' — which part decided), `components` {total?, parts?, labour?} each with amount/expected_min/expected_max/verdict/difference_pct, `alternative_service_types[]` (other jobs whose price range the bill fits), `known_service_types[]` (only when insufficient_data), `context` {inflation_buffer_pct, reference_range, reference_source, society_data_points}
+
+Example:
+```json
+{"tool":"price_fairness_check","arguments":{"household_id":"hh_priya","appliance_type":"ac","service_type":"gas_top_up","total_amount":900}}
 ```
 
 ### `notification_log`

@@ -117,15 +117,41 @@ INSERT INTO checks (id, household_id, job_id, kind, due_at, payload) VALUES
    jsonb_build_object('appliance_id', 'app_priya_ro', 'technician_id', 'tech_suresh', 'visit_due_on', current_date + 2));
 
 -- ───────────────────────── Price reference data ─────────────────────────
--- Labelled "reference data, team-collected". as_of is a placeholder until the teammate sends the full list.
+-- Team-collected (S1). Every row traces back to db/reference_prices_sources.csv (links, dates, notes).
+-- One row per job: several sources for the same job become one min–max range, and all of them are named.
+-- Interview rows have no recorded date, so they use 2026-09-01.
 
-INSERT INTO reference_prices (appliance_type, service_type, city, parts_min, parts_max, labour_min, labour_max, total_min, total_max, source, as_of) VALUES
-  -- AC gas: a local technician's top-up and a full gas charge are different jobs with very different prices.
-  ('ac',          'gas_top_up',         'Pune', NULL, NULL, NULL, NULL, 700,  850,  'PLACEHOLDER — local top-up range, to be replaced from team calls to Pune technicians', '2026-09-01'),
-  ('ac',          'full_gas_charge',    'Pune', NULL, NULL, NULL, NULL, 1500, 2800, 'published prices: LG ₹1,500 (R22 split), LG ₹2,750 (inverter), Urban Company Pune ₹2,800', '2026-10-02'),
-  ('ac',          'pcb_replacement',    'Pune', 3500, 4500, NULL, NULL, NULL, NULL, 'reference data, team-collected', '2026-09-01'),
-  ('fridge',      'gas_refill',         'Pune', NULL, NULL, NULL, NULL, 800,  1000, 'reference data, team-collected', '2026-09-01'),
-  ('ro_purifier', 'filter_replacement', 'Pune', 1200, 1800, NULL, NULL, NULL, NULL, 'reference data, team-collected', '2026-09-01');
+INSERT INTO reference_prices (appliance_type, service_type, city, parts_min, parts_max, labour_min, labour_max, total_min, total_max, source, as_of, note) VALUES
+  -- AC. A local technician's gas top-up and a full gas charge are different jobs with very different prices.
+  ('ac', 'gas_top_up',            'Pune', NULL, NULL, NULL, NULL, 700,  900,  'Household interview (Round 1) ₹900; ₹700 low end is a PLACEHOLDER', '2026-09-01', 'Local top-up, not full charging. Replace the range with the technician-call figures.'),
+  ('ac', 'full_gas_charge',       'Pune', NULL, NULL, NULL, NULL, 1500, 2800, 'LG rate card ₹1,500 (R22 split), ₹2,750 (inverter); Urban Company Pune ₹2,800', '2026-10-02', 'GST extra on LG prices.'),
+  ('ac', 'pcb_replacement',       'Pune', NULL, NULL, NULL, NULL, 1500, 4500, 'Urban Company Pune: non-inverter ₹1,500, inverter ₹4,500; household interview ₹4,000', '2026-10-02', 'Inverter PCBs are at the top of the range. A ₹7,500 quote for this job was reported in interviews as overcharging.'),
+  ('ac', 'capacitor_replacement', 'Pune', 599,  749,  NULL, NULL, 599,  749,  'Urban Company Pune', '2026-10-02', 'Range across capacitor types.'),
+  ('ac', 'visit_checkup',         'Pune', NULL, NULL, 299,  750,  299,  750,  'Urban Company Pune ₹299; LG rate card ₹750 (split, in-home)', '2026-10-02', 'Visit / inspection only; parts extra; GST extra on LG.'),
+  ('ac', 'general_service',       'Pune', NULL, NULL, 549,  649,  549,  649,  'Urban Company Pune: power-jet ₹549, foam-jet ₹649 (single split)', '2026-10-02', 'Starting prices; the final bill may be higher.'),
+  -- RO purifier
+  ('ro_purifier', 'filter_replacement',          'Pune', 1300, 1825, NULL, NULL, NULL, NULL, 'Kent spare price list: sediment ₹650, carbon ₹650, post-carbon ₹525 (a 2–3 filter set)', '2026-10-02', 'Parts only; a visit charge may be added.'),
+  ('ro_purifier', 'complete_filter_replacement', 'Pune', NULL, NULL, NULL, NULL, 4199, 4199, 'Urban Company Pune', '2026-10-02', 'Native-brand spares with 1-year warranty.'),
+  ('ro_purifier', 'membrane_replacement',        'Pune', 3100, 3675, NULL, NULL, NULL, NULL, 'Kent spare price list: RO membranes ₹3,100–3,675 (8-inch high-flow ₹3,375)', '2026-10-02', 'Parts only.'),
+  ('ro_purifier', 'uf_membrane_replacement',     'Pune', 1225, 1225, NULL, NULL, NULL, NULL, 'Kent spare price list', '2026-10-02', 'Parts only.'),
+  ('ro_purifier', 'visit_checkup',               'Pune', NULL, NULL, 299,  550,  299,  550,  'Urban Company Pune ₹299; Kent ₹350; LG ₹550', '2026-10-02', 'Visit only; GST extra on LG.'),
+  ('ro_purifier', 'amc_annual',                  'Pune', NULL, NULL, NULL, NULL, 2000, 2000, 'Kent non-comprehensive AMC (Grand/Pearl range)', '2026-10-02', 'Confirm that Grand Plus falls in this range.'),
+  -- Fridge
+  ('fridge', 'gas_refill',             'Pune', NULL, NULL, NULL, NULL, 850,  1800, 'LG rate card ₹850; NoBroker Pune ₹1,400 (single door), ₹1,800 (double door)', '2026-10-02', 'Double-door fridges sit at the top of the range. GST extra on LG.'),
+  ('fridge', 'compressor_replacement', 'Pune', NULL, NULL, NULL, NULL, 5350, 5800, 'NoBroker Pune: single door ₹5,350, double door ₹5,800', '2026-10-02', 'Includes relay, OLP and capacitor.'),
+  ('fridge', 'thermostat_replacement', 'Pune', 690,  780,  NULL, NULL, 690,  780,  'NoBroker Pune', '2026-10-02', NULL),
+  ('fridge', 'visit_checkup',          'Pune', NULL, NULL, 199,  800,  199,  800,  'Urban Company ₹199; NoBroker ₹199; LG ₹650–800 by fridge size', '2026-10-02', 'Usually adjusted against the final bill.'),
+  -- Washing machine
+  ('washing_machine', 'drain_motor_replacement', 'Pune', NULL, NULL, NULL, NULL, 1300, 2150, 'NoBroker Pune: AC-type ₹1,300, DC ₹1,400, double-way pump ₹2,150', '2026-10-02', 'Starting ("onwards") prices.'),
+  ('washing_machine', 'pcb_replacement',         'Pune', NULL, NULL, NULL, NULL, 1575, 2600, 'NoBroker Pune: top load ₹1,575, front load ₹2,600', '2026-10-02', 'Starting ("onwards") prices.'),
+  ('washing_machine', 'main_motor_replacement',  'Pune', NULL, NULL, NULL, NULL, 1950, 1950, 'NoBroker Pune', '2026-10-02', 'Starting ("onwards") price.'),
+  ('washing_machine', 'general_service',         'Pune', NULL, NULL, 1099, 1099, 1099, 1099, 'Urban Company Pune (jet service)', '2026-10-02', 'Starting price.'),
+  ('washing_machine', 'visit_checkup',           'Pune', NULL, NULL, 199,  750,  199,  750,  'Urban Company ₹199 (₹299 if no repair); LG ₹750 (front load)', '2026-10-02', 'Parts extra; GST extra on LG.'),
+  -- Geyser (heating element and thermostat not found online yet: to come from technician calls)
+  ('geyser', 'visit_checkup',   'Pune', NULL, NULL, 249, 249, 249, 249, 'Urban Company Pune', '2026-10-02', 'Adjusted in the final repair quote.'),
+  ('geyser', 'general_service', 'Pune', NULL, NULL, 599, 599, 599, 599, 'Urban Company Pune (incl. descaling)', '2026-10-02', 'Starting price.'),
+  -- TV
+  ('tv', 'general_repair', 'Pune', NULL, NULL, NULL, NULL, 300, 300, 'Household interview (Round 1)', '2026-09-01', 'Single interview figure.');
 
 INSERT INTO inflation_buffers (kind, annual_pct, note) VALUES
   ('parts',  6.00, 'PLACEHOLDER value — not sourced data. Replace before relying on it.'),

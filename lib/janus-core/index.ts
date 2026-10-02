@@ -4,6 +4,7 @@ import { registerCheckTools } from "./checks";
 import { registerJobTools } from "./jobs";
 import { registerMoneyTools } from "./money";
 import { registerPeopleTools } from "./people";
+import { registerPriceTools } from "./price";
 import { registerTechnicianTools } from "./technicians";
 
 // Every janus_core tool except `ping`, which lives in the route file.
@@ -13,5 +14,6 @@ export function registerJanusCoreTools(server: McpServer) {
   registerTechnicianTools(server);
   registerJobTools(server);
   registerMoneyTools(server);
+  registerPriceTools(server);
   registerCheckTools(server);
 }

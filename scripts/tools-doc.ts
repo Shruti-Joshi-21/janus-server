@@ -56,6 +56,11 @@ const NOTES: Record<string, { returns: string; example: Record<string, unknown> 
   notification_log: { returns: "`notification`", example: { household_id: "hh_priya", member_id: "mem_rohan", kind: "job_update", body: "Ramesh confirmed 5 PM today" } },
   notification_list: { returns: "`notifications[]` (newest first, with member_name)", example: { household_id: "hh_priya" } },
   check_schedule: { returns: "`check`", example: { kind: "technician_reply", job_id: "job_…", due_in_minutes: 120, payload: { ask: "Has Ramesh replied?" } } },
+  price_fairness_check: {
+    returns:
+      "`verdict` ('fair'|'slightly_high'|'high'|'low'|'insufficient_data'), `tier_used` ('household_history'|'society_average'|'reference_prices'|null), `expected_min`, `expected_max`, `last_paid`?, `last_paid_date`?, `difference_pct`, `explanation_en` (ready to paraphrase to the household), `compared` ('total'|'parts'|'labour' — which part decided), `components` {total?, parts?, labour?} each with amount/expected_min/expected_max/verdict/difference_pct, `alternative_service_types[]` (other jobs whose price range the bill fits), `known_service_types[]` (only when insufficient_data), `context` {inflation_buffer_pct, reference_range, reference_source, society_data_points}",
+    example: { household_id: "hh_priya", appliance_type: "ac", service_type: "gas_top_up", total_amount: 900 },
+  },
   checks_due: { returns: "`now`, `count`, `checks[]` (with job_state, technician_id)", example: {} },
   check_done: { returns: "`check`", example: { check_id: "chk_…", outcome: "Ramesh replied, slot 5 PM" } },
 };
