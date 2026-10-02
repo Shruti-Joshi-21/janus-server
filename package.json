@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "reset": "tsx --env-file=.env.local scripts/reset.ts"
+    "reset": "tsx --env-file=.env.local scripts/reset.ts",
+    "docs:tools": "tsx --env-file=.env.local scripts/tools-doc.ts"
   },
   "engines": {
     "node": ">=20"
