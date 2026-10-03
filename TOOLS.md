@@ -5,7 +5,7 @@ If a name here differs from the prompt, the prompt is wrong.
 
 ## Status
 
-All five connectors are **live and tested** (204 checks on the live server, 3 Oct 2026). Base URL `https://janus-server.vercel.app`.
+Six connectors (the five below are **live and tested**; WhatsApp sending is new) (204 checks on the live server, 3 Oct 2026). Base URL `https://janus-server.vercel.app`.
 
 | Connector on AgenticOrg (register as) | What | Tools |
 | --- | --- | --- |
@@ -14,6 +14,7 @@ All five connectors are **live and tested** (204 checks on the live server, 3 Oc
 | `mcp_delhivery_janus_pict` (`delhivery_janus_pict`) | Delhivery Maps **mock**: validate / verify / geocode / reverse-geocode addresses, distance matrix, autosuggest. Delhivery's exact response bodies (not our `{ok}` shape) | 6 |
 | `mcp_pinelabs_janus_pict` (`pinelabs_janus_pict`) | Pine Labs **mock**: One-Time Mandate, UPI AutoPay subscriptions, Payouts. Pine Labs' exact bodies; **amounts in paise** | 13 |
 | `mcp_janus_custom_pict` (`janus_custom_pict`) | Custom capabilities: `proof_of_presence` and `technician_discovery` (partner Delhivery), `technician_identity_check` (partner Pine Labs). Our `{ok}` format plus a `partner` field | 3 |
+| `mcp_whatsapp_janus_pict` (`whatsapp_janus_pict`) | **Real** Twilio: `send_whatsapp`, `make_call` (AI-disclosed), `get_message_status`. Only to known members / technicians. Our `{ok}` format | 3 |
 | Twilio webhook `/api/twilio/inbound` | Incoming WhatsApp → JSON `{channel, from_phone, text, media_url, media_type, latitude, longitude, received_at, twilio_message_sid}` → emailed to **janus.pict.demo@gmail.com** (subject `[janus-inbound] WhatsApp from +91…`, body = the JSON) | — |
 
 When new tools are added to a connector, AgenticOrg only sees them after the connector is archived and registered again (same name).
@@ -123,6 +124,16 @@ Worked examples (demo data): AC `gas_top_up` ₹650 → fair (Priya paid ₹600 
 - **Is the technician really here?** When he shares his WhatsApp location, call `proof_of_presence {job_id, technician_phone, latitude, longitude, timestamp: received_at}` → `present` true (within 200 m) / false / "unknown" (no location, older than 15 min, or not this job's technician), with `distance_m` and `minutes_from_slot`. Use it before marking the job `in_progress` or when the household says he never came.
 - **Nobody available?** `technician_discovery {appliance_type, latitude, longitude, radius_m}` lists nearby businesses (from Delhivery POI data) with phone, rating, distance and ETA. From Priya's home: AC → Shree Sai Cooling (1.2 km, ~4 min), Om Electricals (2.7 km).
 - **Is he who he says?** `technician_identity_check {name, phone, upi_id?}` → `verified` / `mismatch` (registered name shown masked) / `not_found`. Check before paying a technician the household doesn't know. Demo: Ramesh and Suresh verify; Santosh's number is registered to someone else (mismatch); Anil isn't a Pine Labs merchant (not_found).
+
+## Sending WhatsApp messages and calls
+
+AgenticOrg's native Twilio connector failed its connection test, so Janus sends through `mcp_whatsapp_janus_pict` (real Twilio, sandbox +1 415 523 8886).
+- `send_whatsapp {to, body?, media_url?}` → `message_sid`, `status` (usually `queued`). Body max 1,600 characters; media_url must be public https (e.g. a `gnani_text_to_speech` `audio_url` for a voice reply).
+- **Guard:** only phones that are a household member or technician in janus_core; anyone else → `RECIPIENT_UNKNOWN`. Add a technician found by discovery with `technician_add` first.
+- If WhatsApp rejects the message within a few seconds you get the reason instead of "queued": `NOT_JOINED_SANDBOX` (they must send the join code to +1 415 523 8886), `OUTSIDE_24H_WINDOW` (no message from them in 24 h → use Gmail).
+- `get_message_status {message_sid}` → queued / sent / delivered / read / failed / undelivered (+ `error_hint`). Confirm delivery before telling someone "sent". After `TWILIO_TIMEOUT`, check status before resending; the tool never resends by itself.
+- `make_call {to, message, language: "en-IN" | "hi-IN"}` → one voice call that always begins "Hello, this is Janus, an AI assistant." Returns `NO_VOICE_NUMBER` if the Twilio account has no voice number configured.
+- Errors: RECIPIENT_UNKNOWN, INVALID_INPUT, INVALID_PHONE, NOT_JOINED_SANDBOX, OUTSIDE_24H_WINDOW, TWILIO_AUTH_FAILED (tell Track A), TWILIO_RATE_LIMITED (wait and retry), TWILIO_TIMEOUT, TWILIO_ERROR (+ `twilio_code`, `twilio_message`), NO_VOICE_NUMBER, MESSAGE_NOT_FOUND.
 
 ## Demo data (after a reset)
 
@@ -237,6 +248,7 @@ Neighbours (3 other flats, never named to Priya) add AC gas top-up payments of �
 | `custom.next_presence` | not_present, no_location, stale_location, timeout | proof_of_presence | **yes** |
 | `custom.next_discovery` | none_found, timeout | technician_discovery | **yes** |
 | `custom.next_identity` | verified, not_found, mismatch, timeout | technician_identity_check | **yes** |
+| `whatsapp.next_send` | timeout, not_joined, outside_window, failed | send_whatsapp (answers without calling Twilio) | **yes** |
 | `gnani.next_stt` | timeout, malformed, low_confidence | gnani_speech_to_text | **yes** |
 | `gnani.next_tts` | timeout, malformed | gnani_text_to_speech | **yes** |
 
@@ -859,7 +871,7 @@ Example:
 
 ### `scenario_set`
 
-Switch on a failure for testing: the next call(s) of that mock fail the way you choose. uses = how many calls it affects (default 1; 0 = until scenario_clear). Setting a key again replaces it. Keys and values: delhivery.next_validate = incomplete|not_found|timeout|malformed; delhivery.next_geocode = not_found|timeout|malformed; delhivery.next_reverse_geocode = unknown_coordinates|timeout|malformed; delhivery.next_matrix = unknown_coordinates|timeout|malformed; delhivery.next_autosuggest = not_found|timeout|malformed; pinelabs.next_mandate = declined|limit_exceeded|timeout|malformed; pinelabs.next_subscription = declined|timeout|malformed; pinelabs.next_payout = insufficient_balance|failed|timeout|malformed; custom.next_presence = not_present|no_location|stale_location|timeout; custom.next_discovery = none_found|timeout; custom.next_identity = verified|not_found|mismatch|timeout; gnani.next_stt = timeout|malformed|low_confidence; gnani.next_tts = timeout|malformed.
+Switch on a failure for testing: the next call(s) of that mock fail the way you choose. uses = how many calls it affects (default 1; 0 = until scenario_clear). Setting a key again replaces it. Keys and values: delhivery.next_validate = incomplete|not_found|timeout|malformed; delhivery.next_geocode = not_found|timeout|malformed; delhivery.next_reverse_geocode = unknown_coordinates|timeout|malformed; delhivery.next_matrix = unknown_coordinates|timeout|malformed; delhivery.next_autosuggest = not_found|timeout|malformed; pinelabs.next_mandate = declined|limit_exceeded|timeout|malformed; pinelabs.next_subscription = declined|timeout|malformed; pinelabs.next_payout = insufficient_balance|failed|timeout|malformed; custom.next_presence = not_present|no_location|stale_location|timeout; custom.next_discovery = none_found|timeout; custom.next_identity = verified|not_found|mismatch|timeout; whatsapp.next_send = timeout|not_joined|outside_window|failed; gnani.next_stt = timeout|malformed|low_confidence; gnani.next_tts = timeout|malformed.
 
 | Input | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -1375,6 +1387,59 @@ Is this technician who he says he is? Checks his name, phone and (optionally) UP
 Example:
 ```json
 {"tool":"technician_identity_check","arguments":{"name":"Ramesh Patil","phone":"+918369502720","upi_id":"ramesh.cooling@okaxis"}}
+```
+
+## Connector `mcp_whatsapp_janus_pict` — 3 tools
+
+URL: `https://janus-server.vercel.app/whatsapp/mcp` (server name `whatsapp_janus`)
+
+### `send_whatsapp`
+
+Send one real WhatsApp message from the Twilio sandbox number to a known household member or technician (anyone else is refused: RECIPIENT_UNKNOWN). Give body (max 1600 characters) and/or media_url (public https link, e.g. a gnani_text_to_speech audio_url for a voice reply). Returns message_sid and Twilio's status (usually queued). If WhatsApp rejects it within a few seconds (not joined the sandbox, outside the 24-hour window) you get that error instead. Never resend after TWILIO_TIMEOUT without checking get_message_status first.
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `to` | string | yes | Phone number, E.164 preferred (+919876543210). Also accepts spaces/dashes, a 10-digit Indian number or a 'whatsapp:' prefix. |
+| `body` | string | no |  |
+| `media_url` | string | no | Public https URL of the media to attach |
+
+**Returns** (besides `ok: true`): `message_sid`, `status` (Twilio's, usually queued), `to`, `recipient` {name, type}, `sent_at` (ISO UTC), `partner`. Errors: RECIPIENT_UNKNOWN, NOT_JOINED_SANDBOX, OUTSIDE_24H_WINDOW, INVALID_PHONE, TWILIO_TIMEOUT, TWILIO_RATE_LIMITED, TWILIO_AUTH_FAILED, TWILIO_ERROR (+ twilio_code, twilio_message)
+
+Example:
+```json
+{"tool":"send_whatsapp","arguments":{"to":"+918530921384","body":"Ramesh confirmed: he'll come today at 5 PM."}}
+```
+
+### `make_call`
+
+Place one real voice call to a known household member or technician (anyone else is refused). Use only when allowed by the prompt rules (e.g. a technician who hasn't opted in to WhatsApp). The call always starts with "Hello, this is Janus, an AI assistant." and then reads your message (max 500 characters) in en-IN (default) or hi-IN. Returns call_sid and status.
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `to` | string | yes | Phone number, E.164 preferred (+919876543210). Also accepts spaces/dashes, a 10-digit Indian number or a 'whatsapp:' prefix. |
+| `message` | string | yes |  |
+| `language` | `"en-IN"` \| `"hi-IN"` | no | default `"en-IN"` |
+
+**Returns** (besides `ok: true`): `call_sid`, `status`, `to`, `recipient`, `partner`. Errors: RECIPIENT_UNKNOWN, NO_VOICE_NUMBER, TWILIO_* as above
+
+Example:
+```json
+{"tool":"make_call","arguments":{"to":"+918369502720","message":"Priya in Sai Heights, Baner needs her AC repaired. Please reply on WhatsApp if you can come.","language":"hi-IN"}}
+```
+
+### `get_message_status`
+
+Has a WhatsApp message been delivered? status: queued, sent, delivered, read, failed or undelivered. When it failed, error_code_twilio says why (63015 = not joined the sandbox, 63016 = outside the 24-hour window) and error_hint explains what to do.
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `message_sid` | string | yes |  |
+
+**Returns** (besides `ok: true`): `message_sid`, `status` (queued | sent | delivered | read | failed | undelivered), `error_code_twilio`, `error_hint` (when failed), `to`, `date_sent`, `partner`
+
+Example:
+```json
+{"tool":"get_message_status","arguments":{"message_sid":"SM…"}}
 ```
 
 <!-- TOOLS:END -->

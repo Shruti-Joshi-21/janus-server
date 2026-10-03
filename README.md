@@ -2,7 +2,7 @@
 
 Everything **Janus** calls. Janus is the AI agent (built on Pine Labs' AgenticOrg platform) that coordinates household appliance repairs in India for Team PICT Pune, The Ken's Case Competition 2026, Round 3.
 
-This is one Next.js app on Vercel that exposes **five MCP servers** (one per AgenticOrg connector), one **WhatsApp webhook**, and a **call log**.
+This is one Next.js app on Vercel that exposes **six MCP servers** (one per AgenticOrg connector), one **WhatsApp webhook**, and a **call log**.
 
 - **[TOOLS.md](TOOLS.md)**: every tool, its inputs, outputs, example call and error codes. Janus's prompt must use these exact names.
 - **[MOCKS.md](MOCKS.md)**: for each mocked partner API, the documentation it was copied from and what is assumed.
@@ -16,6 +16,7 @@ This is one Next.js app on Vercel that exposes **five MCP servers** (one per Age
 | `/delhivery/mcp` | `delhivery_janus_pict` | `mcp_delhivery_janus_pict` | 6 | **Mock** of Delhivery Maps: validate / verify / geocode / reverse-geocode addresses, distance matrix, autosuggest |
 | `/pinelabs/mcp` | `pinelabs_janus_pict` | `mcp_pinelabs_janus_pict` | 13 | **Mock** of Pine Labs One-Time Mandate, UPI AutoPay subscriptions and Payouts |
 | `/custom/mcp` | `janus_custom_pict` | `mcp_janus_custom_pict` | 3 | Custom capabilities: `proof_of_presence`, `technician_discovery` (partner Delhivery), `technician_identity_check` (partner Pine Labs) |
+| `/whatsapp/mcp` | `whatsapp_janus_pict` | `mcp_whatsapp_janus_pict` | 3 | **Real** Twilio: send WhatsApp messages, make AI-disclosed calls, check delivery (only to known members/technicians) |
 | `/api/twilio/inbound` | (Twilio webhook) | | | Incoming WhatsApp → JSON → emailed to the Janus inbox |
 | `/api/health` | | | | Returns `{"ok": true}` |
 
@@ -27,7 +28,7 @@ Live base URL: `https://janus-server.vercel.app`
 Household's WhatsApp ──► Twilio ──► /api/twilio/inbound ──► email to janus.pict.demo@gmail.com ──► AgenticOrg "Email Received" trigger ──► Janus
                                                                                                                                         │
 Janus calls tools on the 5 MCP connectors (all requests recorded in the call log) ◄──────────────────────────────────────────────────┘
-Janus replies on WhatsApp through AgenticOrg's own Twilio connector (not this server).
+Janus replies on WhatsApp through our /whatsapp/mcp connector (real Twilio), because AgenticOrg's native Twilio connector failed its connection test.
 ```
 
 AgenticOrg has no webhook URL our role can use (its `POST /api/v1/workflows/{id}/run` needs an org-admin API key), so incoming messages travel by **email**. If an admin key becomes available, set `AGENTICORG_WEBHOOK_URL` and `AGENTICORG_API_KEY` and the server posts there instead, with no code change.
@@ -57,7 +58,8 @@ All are in Vercel → Settings → Environment Variables (and `.env.local` for l
 | --- | --- |
 | `MCP_API_KEY` | The key AgenticOrg sends; every `/…/mcp` route checks it |
 | `DATABASE_URL` | Neon Postgres (added by the Vercel ↔ Neon integration) |
-| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` | Checking Twilio's webhook signature; downloading voice notes |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` | Checking Twilio's webhook signature; downloading voice notes; sending WhatsApp messages and calls |
+| `TWILIO_WHATSAPP_FROM`, `TWILIO_VOICE_FROM`, `TWILIO_SANDBOX_JOIN` | Optional: WhatsApp sender (default sandbox), voice number for `make_call`, sandbox join phrase |
 | `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `JANUS_INBOX_EMAIL` | Emailing incoming WhatsApp messages to the Janus inbox (Gmail App Password) |
 | `GNANI_API_KEY` | Gnani speech APIs |
 | `BLOB_READ_WRITE_TOKEN` | Storing text-to-speech audio in Vercel Blob (`janus-audio`) |
@@ -73,6 +75,7 @@ All are in Vercel → Settings → Environment Variables (and `.env.local` for l
 | `npm run reset` | **Wipes the database** and restores the demo cast (the call log is kept) |
 | `npm run calls` | Last 20 tool calls to any connector, in IST. `npm run calls -- 50` for more; `npm run calls -- 20 all` to include registrations and handshakes |
 | `npm test` | Every test suite against the local server; `npm test -- https://janus-server.vercel.app` for the live server. **Resets the database** before, between and after suites |
+| `npm run send:test -- +91… "text"` | Sends ONE real WhatsApp message through the live `send_whatsapp` tool, then checks delivery |
 | `npm run docs:tools` | Regenerates the tool reference in TOOLS.md from a running server (`npm run docs:tools -- https://janus-server.vercel.app` for live) |
 
 Janus testers can reset without a terminal: the `reset_demo_data {confirm: "RESET"}` tool on janus_core does the same as `npm run reset`.

@@ -10,7 +10,8 @@
     "reset": "tsx --env-file=.env.local scripts/reset.ts",
     "docs:tools": "tsx --env-file=.env.local scripts/tools-doc.ts",
     "calls": "tsx --env-file=.env.local scripts/calls.ts",
-    "test": "node tests/run-all.mjs"
+    "test": "node tests/run-all.mjs",
+    "send:test": "tsx --env-file=.env.local scripts/send-test.ts"
   },
   "engines": {
     "node": ">=20"

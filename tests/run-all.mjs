@@ -14,6 +14,8 @@ const suites = [
   ["custom capabilities", "node --env-file=.env.local tests/custom.test.mjs", false],
   ["Gnani (real API)", "node --env-file=.env.local tests/gnani.test.mjs", false],
   ["Pine Labs mock", "node --env-file=.env.local tests/pinelabs.test.mjs", false],
+  ["WhatsApp helpers (unit)", "npx tsx tests/whatsapp-unit.test.mts", false],
+  ["WhatsApp connector", "node --env-file=.env.local tests/whatsapp.test.mjs", false],
   ["scenario switches + reset", "npx tsx --env-file=.env.local tests/scenarios-reset.test.mts", false],
 ];
 

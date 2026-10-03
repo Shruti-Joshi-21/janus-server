@@ -15,6 +15,7 @@ export const SCENARIO_CATALOG: Record<string, { values: string[]; description: s
   "custom.next_presence": { values: ["not_present", "no_location", "stale_location", "timeout"], description: "proof_of_presence" },
   "custom.next_discovery": { values: ["none_found", "timeout"], description: "technician_discovery" },
   "custom.next_identity": { values: ["verified", "not_found", "mismatch", "timeout"], description: "technician_identity_check" },
+  "whatsapp.next_send": { values: ["timeout", "not_joined", "outside_window", "failed"], description: "send_whatsapp (answers without calling Twilio)" },
   "gnani.next_stt": { values: ["timeout", "malformed", "low_confidence"], description: "gnani_speech_to_text" },
   "gnani.next_tts": { values: ["timeout", "malformed"], description: "gnani_text_to_speech" },
 };

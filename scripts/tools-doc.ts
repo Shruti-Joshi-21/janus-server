@@ -22,6 +22,7 @@ const CONNECTORS: Record<string, { path: string; connector: string }> = {
   delhivery_janus: { path: "/delhivery/mcp", connector: "mcp_delhivery_janus_pict" },
   pinelabs_janus: { path: "/pinelabs/mcp", connector: "mcp_pinelabs_janus_pict" },
   janus_custom: { path: "/custom/mcp", connector: "mcp_janus_custom_pict" },
+  whatsapp_janus: { path: "/whatsapp/mcp", connector: "mcp_whatsapp_janus_pict" },
 };
 
 // What each tool returns (besides ok:true) and one example call. Keep in step with lib/janus-core/.
@@ -126,6 +127,18 @@ const NOTES: Record<string, { returns: string; example: Record<string, unknown> 
   technician_identity_check: {
     returns: "`partner: \"Pine Labs\"`, `status` (verified | mismatch | not_found), `matched_fields[]`, `mismatched_fields[]`, `merchant` {display_name, city, onboarded_at}, `registered_name_hint` (masked, on mismatch), `checked_at`, `explanation`",
     example: { name: "Ramesh Patil", phone: "+918369502720", upi_id: "ramesh.cooling@okaxis" },
+  },
+  send_whatsapp: {
+    returns: "`message_sid`, `status` (Twilio's, usually queued), `to`, `recipient` {name, type}, `sent_at` (ISO UTC), `partner`. Errors: RECIPIENT_UNKNOWN, NOT_JOINED_SANDBOX, OUTSIDE_24H_WINDOW, INVALID_PHONE, TWILIO_TIMEOUT, TWILIO_RATE_LIMITED, TWILIO_AUTH_FAILED, TWILIO_ERROR (+ twilio_code, twilio_message)",
+    example: { to: "+918530921384", body: "Ramesh confirmed: he'll come today at 5 PM." },
+  },
+  make_call: {
+    returns: "`call_sid`, `status`, `to`, `recipient`, `partner`. Errors: RECIPIENT_UNKNOWN, NO_VOICE_NUMBER, TWILIO_* as above",
+    example: { to: "+918369502720", message: "Priya in Sai Heights, Baner needs her AC repaired. Please reply on WhatsApp if you can come.", language: "hi-IN" },
+  },
+  get_message_status: {
+    returns: "`message_sid`, `status` (queued | sent | delivered | read | failed | undelivered), `error_code_twilio`, `error_hint` (when failed), `to`, `date_sent`, `partner`",
+    example: { message_sid: "SM…" },
   },
   checks_due: { returns: "`now`, `count`, `checks[]` (with job_state, technician_id)", example: {} },
   check_done: { returns: "`check`", example: { check_id: "chk_…", outcome: "Ramesh replied, slot 5 PM" } },

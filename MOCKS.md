@@ -10,6 +10,11 @@ Common to all mocks:
 - Timeouts wait about 6 seconds, then return the partner's 504 body (AgenticOrg cuts tools off at 10 seconds).
 - Failure switches: see `scenario_set` in TOOLS.md.
 
+## Real APIs we wrap (not mocks)
+
+- **Gnani** (`/gnani/mcp`): real Gnani Vachana speech-to-text and text-to-speech.
+- **WhatsApp** (`/whatsapp/mcp`): real Twilio API (WhatsApp sandbox +1 415 523 8886; calls from `TWILIO_VOICE_FROM` if set). AgenticOrg's native Twilio connector failed its connection test with valid credentials, and an unhealthy connector blocks the whole Janus agent, so Janus sends through our server instead. Only known household members and technicians can be messaged or called (`RECIPIENT_UNKNOWN` otherwise). The `whatsapp.next_send` failure switch answers without calling Twilio.
+
 ## Delhivery Maps (`/delhivery/mcp`, connector `delhivery_janus_pict`)
 
 **Sources (checked 2026-10-03):**
