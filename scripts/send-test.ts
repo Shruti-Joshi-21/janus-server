@@ -8,7 +8,8 @@ if (!to || !body) {
 }
 
 async function call(name: string, args: Record<string, unknown>) {
-  const res = await fetch(`${base}/whatsapp/mcp`, {
+  // The combined route, the one Janus uses on AgenticOrg.
+  const res = await fetch(`${base}/janus/mcp`, {
     method: "POST",
     headers: { "content-type": "application/json", accept: "application/json, text/event-stream", "x-api-key": process.env.MCP_API_KEY!, "mcp-protocol-version": "2025-06-18" },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }),

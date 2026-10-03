@@ -137,7 +137,7 @@ const NOTES: Record<string, { returns: string; example: Record<string, unknown> 
     example: { to: "+918369502720", message: "Priya in Sai Heights, Baner needs her AC repaired. Please reply on WhatsApp if you can come.", language: "hi-IN" },
   },
   get_message_status: {
-    returns: "`message_sid`, `status` (queued | sent | delivered | read | failed | undelivered), `error_code_twilio`, `error_hint` (when failed), `to`, `date_sent`, `partner`",
+    returns: "`message_sid`, `status` (queued | sent | delivered | read | failed | undelivered), `error_code_twilio` (also as `twilio_error_code`), `error_hint` (when failed), `to`, `date_sent`, `partner`",
     example: { message_sid: "SM…" },
   },
   checks_due: { returns: "`now`, `count`, `checks[]` (with job_state, technician_id)", example: {} },

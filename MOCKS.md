@@ -10,6 +10,10 @@ Common to all mocks:
 - Timeouts wait about 6 seconds, then return the partner's 504 body (AgenticOrg cuts tools off at 10 seconds).
 - Failure switches: see `scenario_set` in TOOLS.md.
 
+## One combined endpoint
+
+AgenticOrg validates MCP tools against a single catalogue per user (the last registered connector), so all partner mocks and real-API wrappers are served from one combined endpoint, `/janus/mcp` (connector `janus_pict`). It registers each group with the same code as its own route, so every tool's name, description, input schema and answer is identical (checked by `tests/janus-combined.test.mjs`). WhatsApp uses the real Twilio API because the native Twilio connector failed its connection test with valid credentials.
+
 ## Real APIs we wrap (not mocks)
 
 - **Gnani** (`/gnani/mcp`): real Gnani Vachana speech-to-text and text-to-speech.

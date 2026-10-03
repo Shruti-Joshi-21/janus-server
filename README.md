@@ -2,7 +2,7 @@
 
 Everything **Janus** calls. Janus is the AI agent (built on Pine Labs' AgenticOrg platform) that coordinates household appliance repairs in India for Team The Phantom Elite, The Ken's Case Build Competition 2026.
 
-This is one Next.js app on Vercel that exposes **six MCP servers** (one per AgenticOrg connector), one **WhatsApp webhook**, and a **call log**.
+This is one Next.js app on Vercel that exposes **one combined MCP server** (`/janus/mcp`, all 62 tools, the only one registered on AgenticOrg) plus the six per-group MCP routes it is built from, one **WhatsApp webhook**, and a **call log**.
 
 - **[TOOLS.md](TOOLS.md)**: every tool, its inputs, outputs, example call and error codes. Janus's prompt must use these exact names.
 - **[MOCKS.md](MOCKS.md)**: for each mocked partner API, the documentation it was copied from and what is assumed.
@@ -92,7 +92,7 @@ Vercel deploys automatically when you push to GitHub (`git push`). After adding 
 
 ## Registering a connector on AgenticOrg
 
-Connectors → Register Connector: Provider **Custom / Generic Connector**, name from the table above, tick **MCP**, MCP Server URL = live base URL + route, Category **Ops**, Auth Type **Api Key**, API Key = `MCP_API_KEY` (only the value, without quotes or `MCP_API_KEY=`). Register connectors in the **Track B teammate's login**, where the Janus agent lives (connectors are only visible to the login that registered them).
+Connectors → Register Connector: Provider **Custom / Generic Connector**, name from the table above, tick **MCP**, MCP Server URL = live base URL + route, Category **Ops**, Auth Type **Api Key**, API Key = `MCP_API_KEY` (only the value, without quotes or `MCP_API_KEY=`). Register only **`janus_pict`** → `/janus/mcp`, and register it **last** (after Gmail / Agent Scheduler), in the shared login, where the Janus agent lives (connectors are only visible to the login that registered them).
 
 If registration says "Could not discover tools from MCP server: ExceptionGroup" while the server is up, the API key is wrong. Check the field shows exactly 64 masked characters.
 

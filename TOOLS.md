@@ -5,7 +5,9 @@ If a name here differs from the prompt, the prompt is wrong.
 
 ## Status
 
-Six connectors (the five below are **live and tested**; WhatsApp sending is new) (204 checks on the live server, 3 Oct 2026). Base URL `https://janus-server.vercel.app`.
+> **Register only ONE connector on AgenticOrg: `janus_pict` → `https://janus-server.vercel.app/janus/mcp` (all 62 tools).** On the platform every tool is then named `mcp_janus_pict__<tool>`, e.g. `mcp_janus_pict__get_party_by_phone`, `mcp_janus_pict__validate_address`, `mcp_janus_pict__send_whatsapp`. Reason: AgenticOrg validates an agent's MCP tools against a single connector's catalogue, so two or more MCP connectors can't be attached together. The per-group routes below still exist for testing; the tables further down are grouped by them, but the tool names, inputs and answers are identical on `/janus/mcp`. Don't attach `ping`, `scenario_set`, `scenario_list`, `scenario_clear` or `reset_demo_data` to Janus (testers call them directly).
+
+Per-group routes (all live and tested; 268 checks) (204 checks on the live server, 3 Oct 2026). Base URL `https://janus-server.vercel.app`.
 
 | Connector on AgenticOrg (register as) | What | Tools |
 | --- | --- | --- |
@@ -1435,7 +1437,7 @@ Has a WhatsApp message been delivered? status: queued, sent, delivered, read, fa
 | --- | --- | --- | --- |
 | `message_sid` | string | yes |  |
 
-**Returns** (besides `ok: true`): `message_sid`, `status` (queued | sent | delivered | read | failed | undelivered), `error_code_twilio`, `error_hint` (when failed), `to`, `date_sent`, `partner`
+**Returns** (besides `ok: true`): `message_sid`, `status` (queued | sent | delivered | read | failed | undelivered), `error_code_twilio` (also as `twilio_error_code`), `error_hint` (when failed), `to`, `date_sent`, `partner`
 
 Example:
 ```json

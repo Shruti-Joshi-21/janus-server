@@ -126,6 +126,7 @@ export function registerWhatsAppTools(server: McpServer) {
         message_sid,
         status: msg.status,
         error_code_twilio: code,
+        twilio_error_code: code, // same value; both names are used by different versions of the prompt
         ...(code ? { error_hint: mapTwilioError(null, code, (msg.error_message as string) ?? null).message } : {}),
         to: String(msg.to ?? "").replace(/^whatsapp:/, ""),
         date_sent: msg.date_sent ? new Date(msg.date_sent as string).toISOString() : null,

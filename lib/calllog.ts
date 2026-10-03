@@ -28,7 +28,10 @@ function outcomeOf(responseText: string): { outcome: string | null; error_code: 
 }
 
 // Wraps a route so every request is recorded in ops.tool_calls, after the response has been sent.
-export function withCallLog(connector: string, handler: Handler): Handler {
+// `connector` is a fixed label, or a function giving a label per tool (the combined /janus/mcp route logs each
+// call under its group: janus_core, delhivery, pinelabs, …).
+export function withCallLog(connector: string | ((tool: string | undefined) => string), handler: Handler): Handler {
+  const labelFor = typeof connector === "function" ? connector : () => connector;
   return async (req) => {
     const started = Date.now();
     let messages: RpcMessage[] = [];
@@ -53,7 +56,7 @@ export function withCallLog(connector: string, handler: Handler): Handler {
           const method = response.status === 401 ? "unauthorized" : (m.method ?? req.method);
           await sql`
             INSERT INTO ops.tool_calls (connector, method, tool, args, http_status, outcome, error_code, duration_ms, user_agent)
-            VALUES (${connector}, ${method}, ${m.params?.name ?? null},
+            VALUES (${labelFor(m.params?.name)}, ${method}, ${m.params?.name ?? null},
                     ${m.method === "tools/call" ? JSON.stringify(trimArgs(m.params?.arguments)) : null}::jsonb,
                     ${response.status}, ${m.method === "tools/call" ? outcome : null}, ${error_code},
                     ${duration}, ${req.headers.get("user-agent")})`;
