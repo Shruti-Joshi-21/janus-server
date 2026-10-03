@@ -20,6 +20,7 @@ const CONNECTORS: Record<string, { path: string; connector: string }> = {
   janus_core: { path: "/janus-core/mcp", connector: "mcp_janus_core_pict" },
   gnani_janus: { path: "/gnani/mcp", connector: "mcp_gnani_janus_pict" },
   delhivery_janus: { path: "/delhivery/mcp", connector: "mcp_delhivery_janus_pict" },
+  pinelabs_janus: { path: "/pinelabs/mcp", connector: "mcp_pinelabs_janus_pict" },
 };
 
 // What each tool returns (besides ok:true) and one example call. Keep in step with lib/janus-core/.
@@ -100,6 +101,19 @@ const NOTES: Record<string, { returns: string; example: Record<string, unknown> 
     returns: "Delhivery body: array of {entity_id, entity_name, display_text, full_address, shape, lat, long, entity_type, score} (may be empty)",
     example: { query: "sai heights", lat: 18.56, lng: 73.78 },
   },
+  create_customer: { returns: "Pine Labs customer: `customer_id`, `merchant_customer_reference`, names, `mobile_number`, `status`, timestamps", example: { merchant_customer_reference: "hh_mehta", first_name: "Neha", last_name: "Mehta", mobile_number: "9000000031" } },
+  create_ot_subscription: { returns: "`subscription_id`, `order_id`, `status: CREATED`, `execution_mode: DIRECT_EXECUTION`, `plan_details`, `start_date`, `end_date`", example: { merchant_subscription_reference: "job-123-otm", customer_id: "cust-v1-250901101500-aa-PRIYA1", plan_details: { amount: 250000, currency: "INR", validity_days: 30, description: "AC repair" } } },
+  get_ot_subscription: { returns: "The One-Time Mandate with its current `status` (CREATED / ACTIVE / COMPLETED / CANCELLED / EXPIRED)", example: { subscription_id: "v1-sub-…" } },
+  create_mandate_payment: { returns: "`data` {order_id, status (AUTHORIZED | FAILED), order_amount, payments[{id, status, payment_amount, error_detail?}]}", example: { order_id: "v1-…", payments: [{ merchant_payment_reference: "job-123-mandate", payment_method: "UPI", payment_amount: { value: 250000, currency: "INR" }, payment_option: { upi_details: { txn_mode: "INTENT" } }, mandate_info: { request_type: "CREATE_MANDATE" } }] } },
+  create_presentation: { returns: "`presentation_id`, `subscription_id`, `amount`, `due_date`, `status: CREATED`, `merchant_presentation_reference`", example: { subscription_id: "v1-sub-…", amount: { value: 220000, currency: "INR" }, merchant_presentation_reference: "job-123-debit" } },
+  get_presentation: { returns: "`presentation_id`, `status` (COMPLETED in the mock), `pdn_status`, `failure_count`, `amount`, `order_id`", example: { presentation_id: "v1-bil-…" } },
+  cancel_subscription: { returns: "The subscription with `status: CANCELLED`", example: { subscription_id: "v1-sub-…" } },
+  create_plan: { returns: "`plan_id`, `status`, `frequency`, `amount`, `max_limit_amount`, …", example: { plan_name: "Fridge AMC monthly", frequency: "Month", amount: { value: 30000, currency: "INR" }, max_limit_amount: { value: 40000, currency: "INR" }, end_date: "2027-10-01T00:00:00Z", merchant_plan_reference: "fridge-amc-monthly" } },
+  create_subscription: { returns: "`subscription_id`, `order_id`, `status: CREATED`, `plan_details`, `order_amount` (use it in create_mandate_payment)", example: { merchant_subscription_reference: "priya-ro-amc", plan_id: "v1-pla-250901101600-aa-ROAMC1", customer_id: "cust-v1-250901101500-aa-PRIYA1", start_date: "2026-10-05T00:00:00Z", end_date: "2027-10-04T00:00:00Z", integration_mode: "SEAMLESS" } },
+  get_subscription: { returns: "The UPI AutoPay subscription with `status` and `plan_details`", example: { subscription_id: "v1-sub-…" } },
+  create_payout: { returns: "`clientReferenceId`, `paymentReferenceId`, `requestReferenceId`, `status` (SCHEDULED | PENDING = insufficient balance | FAILED), `message`, `amount`, `scheduledAt`, `_links`", example: { clientReferenceId: "job-123-payout", payeeName: "Ramesh Patil", vpa: "ramesh.cooling@okaxis", amount: { value: 120000, currency: "INR" }, mode: "UPI", remarks: "AC repair" } },
+  get_payouts: { returns: "`payments[]` {status, message, bankTransactionReferenceId (UTR) when SUCCESS, amount, fees, tax, …}, `totalRecords`, `totalPages`, `nextPage`, `_links`", example: { clientReferenceId: "job-123-payout" } },
+  get_payout_balance: { returns: "`accountNumber`, `branchCode`, `balance` {value (paise), currency}", example: {} },
   checks_due: { returns: "`now`, `count`, `checks[]` (with job_state, technician_id)", example: {} },
   check_done: { returns: "`check`", example: { check_id: "chk_…", outcome: "Ramesh replied, slot 5 PM" } },
 };

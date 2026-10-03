@@ -10,7 +10,7 @@ If a name here differs from the prompt, the prompt is wrong.
 | `mcp_janus_core_pict` | Janus's database, people, jobs, payments, follow-up checks, price fairness, failure switches, demo reset | **Live, 35 tools** (re-register the connector to see the 4 scenario/reset tools) |
 | Twilio inbound webhook `/api/twilio/inbound` | Incoming WhatsApp → JSON `{channel, from_phone, text, media_url, media_type, latitude, longitude, received_at, twilio_message_sid}` → Janus, either by AgenticOrg `POST /api/v1/workflows/{id}/run` (body `{payload: event}`, needs an admin API key) or by email to the Janus Gmail (subject `[janus-inbound] WhatsApp from +91…`, body = the JSON) | **Live** via Gmail: every message arrives at janus.pict.demo@gmail.com |
 | `mcp_delhivery_janus_pict` | Delhivery Maps mock: validate/verify/geocode/reverse-geocode addresses, distance matrix, autosuggest. Returns Delhivery's exact response bodies (not our `{ok}` shape); see MOCKS.md | **Built (M7), 6 tools**; register as `delhivery_janus_pict` |
-| `pinelabs_janus` | Pine Labs mandate / subscription / payout mock | Planned (M8) |
+| `mcp_pinelabs_janus_pict` | Pine Labs mock: One-Time Mandate, UPI AutoPay subscriptions, Payouts. Returns Pine Labs' exact bodies; **amounts in paise** | **Built (M8), 13 tools**; register as `pinelabs_janus_pict` |
 | `janus_custom` | proof_of_presence, technician_discovery, technician_identity_check | Planned (M9) |
 | `mcp_gnani_janus_pict` | Real Gnani speech-to-text (WhatsApp voice notes) and text-to-speech (voice replies) | **Built (M6), 2 tools**; register as `gnani_janus_pict` |
 
@@ -22,7 +22,7 @@ When new tools are added to a connector, AgenticOrg only sees them after the con
 
 - **Every answer is JSON.** Success: `{"ok": true, ...}`. Failure: `{"ok": false, "error_code": "JOB_NOT_FOUND", "message": "No job with id \"job_x\"."}` — some failures add extra fields (listed under Error codes). Janus should read `ok` first, never assume success.
 - **Bad input** (missing field, wrong type, unknown key, bad date) → `error_code: "INVALID_INPUT"` with a message naming the field.
-- **Exception: partner mocks (Delhivery now; Pine Labs and custom tools later)** answer with the partner's **real** response body, not `{ok: …}`. Success = the documented JSON. Failure = the tool result is flagged as an error and its text starts with `HTTP <status>:` followed by the partner's error body (e.g. `HTTP 504: {"detail": "Upstream service 'matrix' timed out"}`). A "malformed" reply is broken JSON that can't be parsed; Janus should treat it like an error and retry or fall back.
+- **Exception: partner mocks (Delhivery and Pine Labs now; custom tools later)** answer with the partner's **real** response body, not `{ok: …}`. Success = the documented JSON. Failure = the tool result is flagged as an error and its text starts with `HTTP <status>:` followed by the partner's error body (e.g. `HTTP 504: {"detail": "Upstream service 'matrix' timed out"}`). A "malformed" reply is broken JSON that can't be parsed; Janus should treat it like an error and retry or fall back.
 - **Phone numbers**: E.164 (`+918530921384`). Tools also accept `9000000001`, `+91 90000 00001`, `whatsapp:+918530921384` and always return the normalised form.
 - **Money**: whole rupees, integers (`650`, not `"₹650"` or `650.00`).
 - **Ids** are readable strings with a prefix: `hh_` household, `mem_` member, `app_` appliance, `tech_` technician, `job_`, `pay_`, `rate_`, `cmp_` complaint, `chk_` check, `ntf_` notification, `soc_` society.
@@ -98,6 +98,24 @@ Worked examples (demo data): AC `gas_top_up` ₹650 → fair (Priya paid ₹600 
 - Limits: audio up to 60 seconds; text up to 1,000 characters. Gnani rate-limits bursts (`GNANI_RATE_LIMITED`); wait a few seconds and retry.
 - Errors: `GNANI_TIMEOUT`, `GNANI_RATE_LIMITED`, `GNANI_AUTH_FAILED`, `GNANI_ERROR`, `GNANI_MALFORMED_RESPONSE`, `GNANI_UNREACHABLE`, `MEDIA_DOWNLOAD_FAILED`, `UNSUPPORTED_MEDIA_TYPE` (e.g. a photo), `MEDIA_TOO_LARGE`, `INVALID_MEDIA_URL`, `INVALID_VOICE` (+ `voices_for_language`).
 
+## Paying with Pine Labs (mock)
+
+**All Pine Labs amounts are in paise**: ₹2,500 → `{"value": 250000, "currency": "INR"}`. janus_core tools use whole rupees, so multiply by 100 going in and divide coming out.
+
+**One-Time Mandate** (block money before the job, debit once after):
+1. `create_ot_subscription {merchant_subscription_reference, customer_id: "cust-v1-250901101500-aa-PRIYA1", plan_details: {amount: 250000, currency: "INR", validity_days: 30}}` → `subscription_id`, `order_id`, status `CREATED`. Max ₹1,00,000 and 60 days.
+2. `create_mandate_payment {order_id, payments: [{merchant_payment_reference, payment_method: "UPI", payment_amount: {value: 250000, currency: "INR"}, payment_option: {upi_details: {txn_mode: "INTENT"}}, mandate_info: {request_type: "CREATE_MANDATE"}}]}` → Priya approves (instant in the mock) → `AUTHORIZED`; mandate becomes `ACTIVE`. The amount must equal the mandate amount.
+3. After the job: `create_presentation {subscription_id, amount: {value: 220000, currency: "INR"}, merchant_presentation_reference}` debits the real bill (≤ the mandate). Then the mandate is `COMPLETED`; it can't be debited again.
+4. Not needed? `cancel_subscription {subscription_id}` revokes it.
+
+**UPI AutoPay** (e.g. Suresh's quarterly RO AMC): `create_subscription {plan_id: "v1-pla-250901101600-aa-ROAMC1", customer_id, start_date, end_date, integration_mode: "SEAMLESS", merchant_subscription_reference}` → `create_mandate_payment` with its `order_id` and `order_amount.value` (50000) → `ACTIVE` → `create_presentation` each quarter.
+
+**Payouts** (paying the technician): `create_payout {clientReferenceId, payeeName: "Ramesh Patil", vpa: "ramesh.cooling@okaxis", amount: {value: 120000, currency: "INR"}, mode: "UPI", remarks: "AC repair"}`. Check with `get_payouts {clientReferenceId}` and `get_payout_balance`.
+- The funding account starts at **₹2,000**. A bigger payout is accepted as **`PENDING`** with message "Funding account has insufficient balance" and **nothing is paid**. Janus should tell the household the payout is on hold, not that it failed or succeeded.
+- Reusing a `clientReferenceId` or `merchant_*_reference` returns `DUPLICATE_REQUEST`: nothing is paid twice. Use a fresh reference per new payment, e.g. based on the job id.
+
+**Is this technician who he says he is (name ↔ UPI ID)?** Pine Labs has no such API. Use the custom capability `technician_identity_check` (coming in M9).
+
 ## Demo data (after a reset)
 
 Real phones: **Priya = Shruti** (+918530921384), **Ramesh = Aarya** (+918369502720), **Suresh = Gayatri** (+918308407020). Rohan and Anil are still **placeholders** (+9190000000xx); ids stay the same.
@@ -170,7 +188,7 @@ Neighbours (3 other flats, never named to Priya) add AC gas top-up payments of �
 
 **Scheduled** `chk_priya_ro_amc` — reminder due the day after reset, 10:00 IST, about Suresh's RO visit.
 
-**Pine Labs payout balance** ₹2,000 (a ₹2,500 payout will fail with insufficient balance, once M8 is built).
+**Pine Labs (mock)**: payout balance ₹2,000 (a ₹2,500 payout is held as `PENDING`, insufficient balance); Priya is customer `cust-v1-250901101500-aa-PRIYA1`; UPI AutoPay plan `v1-pla-250901101600-aa-ROAMC1` = Kent RO AMC, ₹500 every quarter.
 
 ## How to trigger failures in tests
 
@@ -205,10 +223,9 @@ Neighbours (3 other flats, never named to Priya) add AC gas top-up payments of �
 | `delhivery.next_reverse_geocode` | unknown_coordinates, timeout, malformed | reverse_geocode | **yes** |
 | `delhivery.next_matrix` | unknown_coordinates, timeout, malformed | compute_distance_matrix | **yes** |
 | `delhivery.next_autosuggest` | not_found, timeout, malformed | auto_suggest | **yes** |
-| `pinelabs.next_mandate` | declined, limit_exceeded, timeout, malformed | One-Time Mandate | M8 |
-| `pinelabs.next_subscription` | declined, timeout, malformed | Fixed Frequency Subscription | M8 |
-| `pinelabs.next_payout` | insufficient_balance, failed, timeout, malformed | Payouts | M8 |
-| `pinelabs.next_beneficiary` | name_mismatch, not_found, timeout | Beneficiary validation | M8 |
+| `pinelabs.next_mandate` | declined, limit_exceeded, timeout, malformed | One-Time Mandate (`declined` hits `create_mandate_payment`; the others hit `create_ot_subscription`) | **yes** |
+| `pinelabs.next_subscription` | declined, timeout, malformed | UPI AutoPay (`declined` hits `create_mandate_payment`; the others hit `create_subscription`) | **yes** |
+| `pinelabs.next_payout` | insufficient_balance, failed, timeout, malformed | `create_payout` | **yes** |
 | `custom.next_presence` | not_present, no_location, stale_location, timeout | proof_of_presence | M9 |
 | `custom.next_discovery` | none_found, timeout | technician_discovery | M9 |
 | `custom.next_identity` | verified, not_found, mismatch, timeout | technician_identity_check | M9 |
@@ -834,7 +851,7 @@ Example:
 
 ### `scenario_set`
 
-Switch on a failure for testing: the next call(s) of that mock fail the way you choose. uses = how many calls it affects (default 1; 0 = until scenario_clear). Setting a key again replaces it. Keys and values: delhivery.next_validate = incomplete|not_found|timeout|malformed; delhivery.next_geocode = not_found|timeout|malformed; delhivery.next_reverse_geocode = unknown_coordinates|timeout|malformed; delhivery.next_matrix = unknown_coordinates|timeout|malformed; delhivery.next_autosuggest = not_found|timeout|malformed; pinelabs.next_mandate = declined|limit_exceeded|timeout|malformed; pinelabs.next_subscription = declined|timeout|malformed; pinelabs.next_payout = insufficient_balance|failed|timeout|malformed; pinelabs.next_beneficiary = name_mismatch|not_found|timeout; custom.next_presence = not_present|no_location|stale_location|timeout; custom.next_discovery = none_found|timeout; custom.next_identity = verified|not_found|mismatch|timeout; gnani.next_stt = timeout|malformed|low_confidence; gnani.next_tts = timeout|malformed.
+Switch on a failure for testing: the next call(s) of that mock fail the way you choose. uses = how many calls it affects (default 1; 0 = until scenario_clear). Setting a key again replaces it. Keys and values: delhivery.next_validate = incomplete|not_found|timeout|malformed; delhivery.next_geocode = not_found|timeout|malformed; delhivery.next_reverse_geocode = unknown_coordinates|timeout|malformed; delhivery.next_matrix = unknown_coordinates|timeout|malformed; delhivery.next_autosuggest = not_found|timeout|malformed; pinelabs.next_mandate = declined|limit_exceeded|timeout|malformed; pinelabs.next_subscription = declined|timeout|malformed; pinelabs.next_payout = insufficient_balance|failed|timeout|malformed; custom.next_presence = not_present|no_location|stale_location|timeout; custom.next_discovery = none_found|timeout; custom.next_identity = verified|not_found|mismatch|timeout; gnani.next_stt = timeout|malformed|low_confidence; gnani.next_tts = timeout|malformed.
 
 | Input | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -1033,6 +1050,265 @@ Delhivery: finds places and addresses as you type. query can be text, a 6-digit 
 Example:
 ```json
 {"tool":"auto_suggest","arguments":{"query":"sai heights","lat":18.56,"lng":73.78}}
+```
+
+## Connector `mcp_pinelabs_janus_pict` — 13 tools
+
+URL: `https://janus-server.vercel.app/pinelabs/mcp` (server name `pinelabs_janus`)
+
+### `create_customer`
+
+Pine Labs POST /api/v1/customer. Creates the customer a mandate or subscription is set up for. Returns customer_id. (Priya already exists: cust-v1-250901101500-aa-PRIYA1, merchant_customer_reference 'hh_priya'.)
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `merchant_customer_reference` | string | yes |  |
+| `first_name` | string | yes |  |
+| `last_name` | string | no |  |
+| `country_code` | string | no | default `"91"` |
+| `mobile_number` | string | yes |  |
+| `email_id` | string | no |  |
+| `merchant_metadata` | object | no |  |
+
+**Returns** (besides `ok: true`): Pine Labs customer: `customer_id`, `merchant_customer_reference`, names, `mobile_number`, `status`, timestamps
+
+Example:
+```json
+{"tool":"create_customer","arguments":{"merchant_customer_reference":"hh_mehta","first_name":"Neha","last_name":"Mehta","mobile_number":"9000000031"}}
+```
+
+### `create_ot_subscription`
+
+Pine Labs One-Time Mandate, step 1: POST /api/v1/public/subscriptions/ot. Blocks up to plan_details.amount (PAISE: ₹2,500 = 250000) on the customer's UPI for validity_days, to be debited once later. Limits: max ₹1,00,000 (10000000 paise), max 60 days. merchant_subscription_reference is the idempotency key. Returns subscription_id, order_id, status CREATED; next call create_mandate_payment with the order_id.
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `merchant_subscription_reference` | string | yes |  |
+| `customer_id` | string | yes |  |
+| `plan_details` | object | yes | Pass only the keys you want to change. |
+| `plan_details.amount` | integer | no |  |
+| `plan_details.currency` | string | no | default `"INR"` |
+| `plan_details.validity_days` | integer | no |  |
+| `plan_details.description` | string | no |  |
+| `callback_url` | string | no |  |
+| `merchant_metadata` | object | no |  |
+
+**Returns** (besides `ok: true`): `subscription_id`, `order_id`, `status: CREATED`, `execution_mode: DIRECT_EXECUTION`, `plan_details`, `start_date`, `end_date`
+
+Example:
+```json
+{"tool":"create_ot_subscription","arguments":{"merchant_subscription_reference":"job-123-otm","customer_id":"cust-v1-250901101500-aa-PRIYA1","plan_details":{"amount":250000,"currency":"INR","validity_days":30,"description":"AC repair"}}}
+```
+
+### `get_ot_subscription`
+
+Pine Labs GET /api/v1/subscriptions/ot/{subscription_id}. Status of a One-Time Mandate: CREATED (waiting for the customer to approve), ACTIVE (approved, can be debited once), COMPLETED (debited), CANCELLED, EXPIRED.
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `subscription_id` | string | yes |  |
+
+**Returns** (besides `ok: true`): The One-Time Mandate with its current `status` (CREATED / ACTIVE / COMPLETED / CANCELLED / EXPIRED)
+
+Example:
+```json
+{"tool":"get_ot_subscription","arguments":{"subscription_id":"v1-sub-…"}}
+```
+
+### `create_mandate_payment`
+
+Pine Labs POST /api/pay/v1/orders/{order_id}/payments with mandate_info.request_type CREATE_MANDATE. Registers the UPI mandate for a One-Time Mandate or a UPI AutoPay subscription (use its order_id). payment_amount.value (paise) must equal the mandate amount. In this mock the customer approves in their UPI app immediately: the mandate/subscription becomes ACTIVE (unless the 'declined' failure switch is on).
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `order_id` | string | yes |  |
+| `payments` | object[] | yes |  |
+
+**Returns** (besides `ok: true`): `data` {order_id, status (AUTHORIZED | FAILED), order_amount, payments[{id, status, payment_amount, error_detail?}]}
+
+Example:
+```json
+{"tool":"create_mandate_payment","arguments":{"order_id":"v1-…","payments":[{"merchant_payment_reference":"job-123-mandate","payment_method":"UPI","payment_amount":{"value":250000,"currency":"INR"},"payment_option":{"upi_details":{"txn_mode":"INTENT"}},"mandate_info":{"request_type":"CREATE_MANDATE"}}]}}
+```
+
+### `create_presentation`
+
+Pine Labs POST /ps/api/v1/public/subscriptions/{subscription_id}/presentations. Debits the customer against an ACTIVE mandate/subscription (the 'capture'). amount.value in PAISE must be ≤ the mandate amount. A One-Time Mandate can be debited only once and then becomes COMPLETED. merchant_presentation_reference must be unique (a repeat returns DUPLICATE_REQUEST, never a second debit).
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `subscription_id` | string | yes |  |
+| `amount` | object | yes | Pass only the keys you want to change. |
+| `amount.value` | integer | no |  |
+| `amount.currency` | string | no |  |
+| `merchant_presentation_reference` | string | yes |  |
+| `due_date` | string | no |  |
+
+**Returns** (besides `ok: true`): `presentation_id`, `subscription_id`, `amount`, `due_date`, `status: CREATED`, `merchant_presentation_reference`
+
+Example:
+```json
+{"tool":"create_presentation","arguments":{"subscription_id":"v1-sub-…","amount":{"value":220000,"currency":"INR"},"merchant_presentation_reference":"job-123-debit"}}
+```
+
+### `get_presentation`
+
+Pine Labs GET /ps/api/v1/public/presentations/{presentation_id}. Debit status: CREATED, PENDING, COMPLETED, FAILED, CANCELLED…, plus pdn_status (pre-debit notification) and failure_count.
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `presentation_id` | string | yes |  |
+
+**Returns** (besides `ok: true`): `presentation_id`, `status` (COMPLETED in the mock), `pdn_status`, `failure_count`, `amount`, `order_id`
+
+Example:
+```json
+{"tool":"get_presentation","arguments":{"presentation_id":"v1-bil-…"}}
+```
+
+### `cancel_subscription`
+
+Pine Labs POST /ps/api/v1/public/subscriptions/{subscription_id}/cancel. Revokes a One-Time Mandate or cancels a UPI AutoPay subscription; it can no longer be debited. Returns the subscription with status CANCELLED.
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `subscription_id` | string | yes |  |
+
+**Returns** (besides `ok: true`): The subscription with `status: CANCELLED`
+
+Example:
+```json
+{"tool":"cancel_subscription","arguments":{"subscription_id":"v1-sub-…"}}
+```
+
+### `create_plan`
+
+Pine Labs POST /ps/api/v1/public/plans. A recurring plan (frequency Month, Quarterly, …) with amount and max_limit_amount in PAISE. (Seeded: v1-pla-250901101600-aa-ROAMC1 = Kent RO AMC, ₹500 quarterly.)
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `plan_name` | string | yes |  |
+| `plan_description` | string | no |  |
+| `frequency` | `"Day"` \| `"Week"` \| `"Month"` \| `"Year"` \| `"Bi-Monthly"` \| `"Quarterly"` \| `"Half-Yearly"` \| `"AS"` \| `"OT"` \| `"Not Applicable"` | yes |  |
+| `amount` | object | yes | Pass only the keys you want to change. |
+| `amount.value` | integer | no |  |
+| `amount.currency` | string | no |  |
+| `max_limit_amount` | object | yes | Pass only the keys you want to change. |
+| `max_limit_amount.value` | integer | no |  |
+| `max_limit_amount.currency` | string | no |  |
+| `initial_debit_amount` | object | no | Pass only the keys you want to change. |
+| `initial_debit_amount.value` | integer | no |  |
+| `initial_debit_amount.currency` | string | no |  |
+| `trial_period_in_days` | integer | no |  |
+| `start_date` | string | no |  |
+| `end_date` | string | yes |  |
+| `merchant_plan_reference` | string | yes |  |
+| `merchant_metadata` | object | no |  |
+| `auto_debit_ot` | string | no |  |
+
+**Returns** (besides `ok: true`): `plan_id`, `status`, `frequency`, `amount`, `max_limit_amount`, …
+
+Example:
+```json
+{"tool":"create_plan","arguments":{"plan_name":"Fridge AMC monthly","frequency":"Month","amount":{"value":30000,"currency":"INR"},"max_limit_amount":{"value":40000,"currency":"INR"},"end_date":"2027-10-01T00:00:00Z","merchant_plan_reference":"fridge-amc-monthly"}}
+```
+
+### `create_subscription`
+
+Pine Labs POST /ps/api/v1/public/subscriptions (UPI AutoPay / fixed frequency). Subscribes a customer to a plan; merchant_subscription_reference is the idempotency key. Returns subscription_id and order_id with status CREATED; then call create_mandate_payment with that order_id and order_amount.value to activate it.
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `merchant_subscription_reference` | string | yes |  |
+| `plan_id` | string | yes |  |
+| `customer_id` | string | yes |  |
+| `start_date` | string | yes |  |
+| `end_date` | string | yes |  |
+| `integration_mode` | `"SEAMLESS"` \| `"REDIRECT"` | yes |  |
+| `enable_notification` | boolean | no |  |
+| `allowed_payment_methods` | string[] | no |  |
+| `merchant_metadata` | object | no |  |
+| `callback_url` | string | no |  |
+| `failure_callback_url` | string | no |  |
+
+**Returns** (besides `ok: true`): `subscription_id`, `order_id`, `status: CREATED`, `plan_details`, `order_amount` (use it in create_mandate_payment)
+
+Example:
+```json
+{"tool":"create_subscription","arguments":{"merchant_subscription_reference":"priya-ro-amc","plan_id":"v1-pla-250901101600-aa-ROAMC1","customer_id":"cust-v1-250901101500-aa-PRIYA1","start_date":"2026-10-05T00:00:00Z","end_date":"2027-10-04T00:00:00Z","integration_mode":"SEAMLESS"}}
+```
+
+### `get_subscription`
+
+Pine Labs GET /ps/api/v1/public/subscriptions/{subscription_id}. A UPI AutoPay subscription with its plan_details and status (CREATED, ACTIVE, CANCELLED, EXPIRED, …).
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `subscription_id` | string | yes |  |
+
+**Returns** (besides `ok: true`): The UPI AutoPay subscription with `status` and `plan_details`
+
+Example:
+```json
+{"tool":"get_subscription","arguments":{"subscription_id":"v1-sub-…"}}
+```
+
+### `create_payout`
+
+Pine Labs POST /payouts/v3/payments/banks. Pays a beneficiary (e.g. the technician) from the merchant funding account. mode UPI needs vpa; IMPS/NEFT/RTGS need accountNumber + branchCode (IFSC). amount.value in PAISE. clientReferenceId is the idempotency key: a repeat returns 409 DUPLICATE_REQUEST and never pays twice. If the funding account balance is too low, the payout is accepted with status PENDING ('Funding account has insufficient balance') and no money moves. Check progress with get_payouts.
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `clientReferenceId` | string | yes |  |
+| `payeeName` | string | yes |  |
+| `email` | string | no |  |
+| `phone` | string | no |  |
+| `accountNumber` | string | no |  |
+| `branchCode` | string | no |  |
+| `vpa` | string | no |  |
+| `amount` | object | yes | Pass only the keys you want to change. |
+| `amount.value` | integer | no |  |
+| `amount.currency` | string | no |  |
+| `mode` | `"UPI"` \| `"IMPS"` \| `"NEFT"` \| `"RTGS"` | yes |  |
+| `remarks` | string | yes |  |
+
+**Returns** (besides `ok: true`): `clientReferenceId`, `paymentReferenceId`, `requestReferenceId`, `status` (SCHEDULED | PENDING = insufficient balance | FAILED), `message`, `amount`, `scheduledAt`, `_links`
+
+Example:
+```json
+{"tool":"create_payout","arguments":{"clientReferenceId":"job-123-payout","payeeName":"Ramesh Patil","vpa":"ramesh.cooling@okaxis","amount":{"value":120000,"currency":"INR"},"mode":"UPI","remarks":"AC repair"}}
+```
+
+### `get_payouts`
+
+Pine Labs GET /payouts/v3/payments. Look up payouts by paymentReferenceId or clientReferenceId (or list by status). Status: SCHEDULED, PENDING (insufficient balance), PROCESSING, PROCESSED, SUCCESS (with bankTransactionReferenceId = UTR), FAILED.
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `paymentReferenceId` | string | no |  |
+| `clientReferenceId` | string | no |  |
+| `status` | `"SCHEDULED"` \| `"PENDING"` \| `"PROCESSING"` \| `"PROCESSED"` \| `"SUCCESS"` \| `"FAILED"` | no |  |
+| `page` | integer | no | default `1` |
+| `count` | integer | no | default `500` |
+
+**Returns** (besides `ok: true`): `payments[]` {status, message, bankTransactionReferenceId (UTR) when SUCCESS, amount, fees, tax, …}, `totalRecords`, `totalPages`, `nextPage`, `_links`
+
+Example:
+```json
+{"tool":"get_payouts","arguments":{"clientReferenceId":"job-123-payout"}}
+```
+
+### `get_payout_balance`
+
+Pine Labs GET /payouts/v3/payments/funding-account. The merchant funding account payouts are paid from: accountNumber, branchCode, balance.value in PAISE (₹2,000 at reset = 200000).
+
+_No inputs._
+
+**Returns** (besides `ok: true`): `accountNumber`, `branchCode`, `balance` {value (paise), currency}
+
+Example:
+```json
+{"tool":"get_payout_balance","arguments":{}}
 ```
 
 <!-- TOOLS:END -->

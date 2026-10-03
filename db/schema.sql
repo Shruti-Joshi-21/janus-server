@@ -274,48 +274,64 @@ CREATE TABLE pine_merchants (
   onboarded_at   date
 );
 
--- Pine Labs mock state. Exact request/response fields are copied from Pine Labs docs in M8,
--- so the full request and our last response are kept as JSON.
-CREATE TABLE mock_mandates (
-  id               text PRIMARY KEY DEFAULT new_id('otm'),
-  idempotency_key  text UNIQUE,
-  status           text NOT NULL,
-  amount           integer NOT NULL,
-  valid_until      timestamptz,
-  request          jsonb NOT NULL DEFAULT '{}',
-  response         jsonb NOT NULL DEFAULT '{}',
-  created_at       timestamptz NOT NULL DEFAULT now(),
-  updated_at       timestamptz NOT NULL DEFAULT now()
+-- Pine Labs mock state (M8). Each table keeps the object exactly as Pine Labs returns it in `body`,
+-- plus a few columns we need to look things up. Amounts are in PAISE, like Pine Labs (₹1 = 100).
+CREATE TABLE mock_pl_customers (
+  customer_id                  text PRIMARY KEY,
+  merchant_customer_reference  text UNIQUE,
+  body                         jsonb NOT NULL,
+  created_at                   timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE TABLE mock_subscriptions (
-  id               text PRIMARY KEY DEFAULT new_id('sub'),
-  idempotency_key  text UNIQUE,
-  status           text NOT NULL,
-  amount           integer NOT NULL,
-  frequency        text,
-  request          jsonb NOT NULL DEFAULT '{}',
-  response         jsonb NOT NULL DEFAULT '{}',
-  created_at       timestamptz NOT NULL DEFAULT now(),
-  updated_at       timestamptz NOT NULL DEFAULT now()
+CREATE TABLE mock_pl_plans (
+  plan_id                  text PRIMARY KEY,
+  merchant_plan_reference  text UNIQUE,
+  body                     jsonb NOT NULL,
+  created_at               timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE TABLE mock_payouts (
-  id               text PRIMARY KEY DEFAULT new_id('pout'),
-  idempotency_key  text UNIQUE,
-  status           text NOT NULL,
-  amount           integer NOT NULL,
-  beneficiary      jsonb NOT NULL DEFAULT '{}',
-  request          jsonb NOT NULL DEFAULT '{}',
-  response         jsonb NOT NULL DEFAULT '{}',
-  created_at       timestamptz NOT NULL DEFAULT now(),
-  updated_at       timestamptz NOT NULL DEFAULT now()
+-- One-Time Mandates (kind OT) and fixed-frequency UPI AutoPay subscriptions (kind RECURRING).
+CREATE TABLE mock_pl_subscriptions (
+  subscription_id                  text PRIMARY KEY,
+  merchant_subscription_reference  text NOT NULL UNIQUE,   -- Pine Labs idempotency key
+  order_id                         text NOT NULL UNIQUE,
+  kind                             text NOT NULL CHECK (kind IN ('OT', 'RECURRING')),
+  status                           text NOT NULL,
+  max_amount_paise                 integer NOT NULL,         -- debits may not exceed this
+  valid_until                      timestamptz,
+  body                             jsonb NOT NULL,
+  created_at                       timestamptz NOT NULL DEFAULT now(),
+  updated_at                       timestamptz NOT NULL DEFAULT now()
 );
 
+-- Presentations = debits raised against an ACTIVE mandate / subscription.
+CREATE TABLE mock_pl_presentations (
+  presentation_id                  text PRIMARY KEY,
+  subscription_id                  text NOT NULL REFERENCES mock_pl_subscriptions(subscription_id),
+  merchant_presentation_reference  text UNIQUE,
+  status                           text NOT NULL,
+  amount_paise                     integer NOT NULL,
+  body                             jsonb NOT NULL,
+  created_at                       timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE mock_pl_payouts (
+  payment_reference_id  text PRIMARY KEY,
+  client_reference_id   text NOT NULL UNIQUE,              -- Pine Labs idempotency key
+  status                text NOT NULL,
+  amount_paise          integer NOT NULL,
+  body                  jsonb NOT NULL,
+  created_at            timestamptz NOT NULL DEFAULT now(),
+  updated_at            timestamptz NOT NULL DEFAULT now()
+);
+
+-- The merchant funding account payouts are paid from.
 CREATE TABLE merchant_balance (
-  merchant_id  text PRIMARY KEY,
-  balance      integer NOT NULL,     -- ₹ available for payouts
-  updated_at   timestamptz NOT NULL DEFAULT now()
+  merchant_id     text PRIMARY KEY,
+  account_number  text NOT NULL,
+  branch_code     text NOT NULL,
+  balance_paise   bigint NOT NULL,
+  updated_at      timestamptz NOT NULL DEFAULT now()
 );
 
 -- ───────────────────────── Demo controls and logs ─────────────────────────

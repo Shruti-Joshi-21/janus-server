@@ -199,4 +199,27 @@ INSERT INTO pine_merchants (merchant_id, legal_name, display_name, phone, upi_id
 -- ───────────────────────── Pine Labs mock: payout balance ─────────────────────────
 -- ₹2,000 so that a ₹2,500 payout fails with INSUFFICIENT_BALANCE.
 
-INSERT INTO merchant_balance (merchant_id, balance) VALUES ('janus_merchant', 2000);
+INSERT INTO merchant_balance (merchant_id, account_number, branch_code, balance_paise) VALUES
+  ('janus_merchant', '0995300992429', 'UTIB0001111', 200000);
+
+-- Priya already exists as a Pine Labs customer (needed for mandates and subscriptions).
+INSERT INTO mock_pl_customers (customer_id, merchant_customer_reference, body) VALUES
+  ('cust-v1-250901101500-aa-PRIYA1', 'hh_priya', jsonb_build_object(
+    'customer_id', 'cust-v1-250901101500-aa-PRIYA1', 'merchant_customer_reference', 'hh_priya',
+    'first_name', 'Priya', 'last_name', '', 'country_code', '91', 'mobile_number', '8530921384',
+    'email_id', null, 'gstin', null, 'merchant_metadata', jsonb_build_object('household_id', 'hh_priya'),
+    'status', 'ACTIVE', 'created_at', '2025-09-01T04:45:00Z', 'updated_at', '2025-09-01T04:45:00Z'));
+
+-- A UPI AutoPay plan for Suresh's Kent RO AMC: ₹500 every quarter (amounts in paise).
+INSERT INTO mock_pl_plans (plan_id, merchant_plan_reference, body) VALUES
+  ('v1-pla-250901101600-aa-ROAMC1', 'kent-ro-amc-quarterly', jsonb_build_object(
+    'plan_id', 'v1-pla-250901101600-aa-ROAMC1', 'status', 'ACTIVE',
+    'plan_name', 'Kent RO AMC - quarterly', 'plan_description', 'Quarterly AMC visit by Suresh More',
+    'frequency', 'Quarterly',
+    'amount', jsonb_build_object('value', 50000, 'currency', 'INR'),
+    'max_limit_amount', jsonb_build_object('value', 75000, 'currency', 'INR'),
+    'trial_period_in_days', 0, 'start_date', '2025-09-01T04:46:00Z', 'end_date', '2027-08-31T18:29:59Z',
+    'merchant_metadata', jsonb_build_object('appliance_id', 'app_priya_ro'),
+    'merchant_plan_reference', 'kent-ro-amc-quarterly',
+    'created_at', '2025-09-01T04:46:00Z', 'modified_at', '2025-09-01T04:46:00Z',
+    'initial_debit_amount', jsonb_build_object('value', 50000, 'currency', 'INR'), 'auto_debit_ot', 'false'));
