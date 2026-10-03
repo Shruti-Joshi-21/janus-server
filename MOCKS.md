@@ -83,6 +83,19 @@ Copied exactly: amounts as `{value, currency}` in **paise** (min ₹1 = 100, max
 
 **Seed data:** Priya is customer `cust-v1-250901101500-aa-PRIYA1`; plan `v1-pla-250901101600-aa-ROAMC1` = Kent RO AMC, ₹500 quarterly (max ₹750); funding account `0995300992429` / `UTIB0001111` with **₹2,000** (200000 paise).
 
-## Custom capabilities (`/custom/mcp`)
+## Custom capabilities (`/custom/mcp`, connector `janus_custom_pict`)
 
-Not built yet (M9).
+Competition rule: up to 3 capabilities that Gnani, Pine Labs or Delhivery don't offer today, each attributable to one partner and the data it already holds. These are **our designs**, not copies of a partner API, so they answer in our normal `{ok, …}` format and every answer carries a `partner` field.
+
+| Tool | Partner | Data the partner already holds | Our seed data standing in for it |
+| --- | --- | --- | --- |
+| `proof_of_presence` | **Delhivery** | Billions of delivery GPS pings and geocoded doorstep addresses | The household's coordinates (`households.latitude/longitude`) and the job's `confirmed_slot` |
+| `technician_discovery` | **Delhivery** | POI / business listings behind its Autosuggest search | `technician_directory` (3 Pune repair businesses near Baner, `source: "delhivery_poi"`) |
+| `technician_identity_check` | **Pine Labs** | KYC on merchants it onboarded for UPI/QR acceptance | `pine_merchants` (4 merchants: Ramesh and Suresh verified; Mahesh verified; Santosh's phone registered to "Sunil Jadhav"; Anil absent) |
+
+Rules (ours):
+- **proof_of_presence**: present if within **200 m** of the household (straight-line); `unknown` if no location was shared, if the location is older than **15 minutes**, if the phone isn't the job's technician, or if the household has no coordinates. `minutes_from_slot` = location time minus the agreed slot.
+- **technician_discovery**: businesses whose skills include the appliance, within `radius_m` (default 3 km, max 25 km), nearest first; ETA assumes 25 km/h motorcycle on roads (straight-line × 1.3). When nothing is in range it reports the nearest one outside it.
+- **technician_identity_check**: `verified` if every word of the given name is in the KYC legal name (so "Ramesh" matches "Ramesh Patil") and the UPI ID matches when given; `mismatch` otherwise, showing only a **masked** registered name (e.g. `S**** J*****`) so KYC data isn't exposed; `not_found` if the phone isn't a verified Pine Labs merchant. This also covers the "beneficiary name ↔ UPI ID" check that Pine Labs' real API doesn't offer.
+
+Failure switches: `custom.next_presence` (not_present, no_location, stale_location, timeout), `custom.next_discovery` (none_found, timeout), `custom.next_identity` (verified, not_found, mismatch, timeout). Simulated answers carry `simulated: true`. Timeouts return `{ok:false, error_code:"TIMEOUT", partner, http_status: 504}` after about 6 seconds.

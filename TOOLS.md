@@ -1,4 +1,4 @@
-# Janus tools — the contract between Track A (server) and Track B (Janus prompt)
+**yes** |**yes** |**yes** |# Janus tools — the contract between Track A (server) and Track B (Janus prompt)
 
 Tool names, inputs and outputs below are generated from the live server, so they match exactly what AgenticOrg discovers.
 If a name here differs from the prompt, the prompt is wrong.
@@ -11,7 +11,7 @@ If a name here differs from the prompt, the prompt is wrong.
 | Twilio inbound webhook `/api/twilio/inbound` | Incoming WhatsApp → JSON `{channel, from_phone, text, media_url, media_type, latitude, longitude, received_at, twilio_message_sid}` → Janus, either by AgenticOrg `POST /api/v1/workflows/{id}/run` (body `{payload: event}`, needs an admin API key) or by email to the Janus Gmail (subject `[janus-inbound] WhatsApp from +91…`, body = the JSON) | **Live** via Gmail: every message arrives at janus.pict.demo@gmail.com |
 | `mcp_delhivery_janus_pict` | Delhivery Maps mock: validate/verify/geocode/reverse-geocode addresses, distance matrix, autosuggest. Returns Delhivery's exact response bodies (not our `{ok}` shape); see MOCKS.md | **Built (M7), 6 tools**; register as `delhivery_janus_pict` |
 | `mcp_pinelabs_janus_pict` | Pine Labs mock: One-Time Mandate, UPI AutoPay subscriptions, Payouts. Returns Pine Labs' exact bodies; **amounts in paise** | **Built (M8), 13 tools**; register as `pinelabs_janus_pict` |
-| `janus_custom` | proof_of_presence, technician_discovery, technician_identity_check | Planned (M9) |
+| `mcp_janus_custom_pict` | 3 custom capabilities: `proof_of_presence` + `technician_discovery` (partner Delhivery), `technician_identity_check` (partner Pine Labs). Our `{ok}` format with a `partner` field | **Built (M9), 3 tools**; register as `janus_custom_pict` |
 | `mcp_gnani_janus_pict` | Real Gnani speech-to-text (WhatsApp voice notes) and text-to-speech (voice replies) | **Built (M6), 2 tools**; register as `gnani_janus_pict` |
 
 When new tools are added to a connector, AgenticOrg only sees them after the connector is archived and registered again (same name).
@@ -22,7 +22,7 @@ When new tools are added to a connector, AgenticOrg only sees them after the con
 
 - **Every answer is JSON.** Success: `{"ok": true, ...}`. Failure: `{"ok": false, "error_code": "JOB_NOT_FOUND", "message": "No job with id \"job_x\"."}` — some failures add extra fields (listed under Error codes). Janus should read `ok` first, never assume success.
 - **Bad input** (missing field, wrong type, unknown key, bad date) → `error_code: "INVALID_INPUT"` with a message naming the field.
-- **Exception: partner mocks (Delhivery and Pine Labs now; custom tools later)** answer with the partner's **real** response body, not `{ok: …}`. Success = the documented JSON. Failure = the tool result is flagged as an error and its text starts with `HTTP <status>:` followed by the partner's error body (e.g. `HTTP 504: {"detail": "Upstream service 'matrix' timed out"}`). A "malformed" reply is broken JSON that can't be parsed; Janus should treat it like an error and retry or fall back.
+- **Exception: partner mocks (Delhivery and Pine Labs)** answer with the partner's **real** response body, not `{ok: …}`. Success = the documented JSON. Failure = the tool result is flagged as an error and its text starts with `HTTP <status>:` followed by the partner's error body (e.g. `HTTP 504: {"detail": "Upstream service 'matrix' timed out"}`). A "malformed" reply is broken JSON that can't be parsed; Janus should treat it like an error and retry or fall back.
 - **Phone numbers**: E.164 (`+918530921384`). Tools also accept `9000000001`, `+91 90000 00001`, `whatsapp:+918530921384` and always return the normalised form.
 - **Money**: whole rupees, integers (`650`, not `"₹650"` or `650.00`).
 - **Ids** are readable strings with a prefix: `hh_` household, `mem_` member, `app_` appliance, `tech_` technician, `job_`, `pay_`, `rate_`, `cmp_` complaint, `chk_` check, `ntf_` notification, `soc_` society.
@@ -114,7 +114,13 @@ Worked examples (demo data): AC `gas_top_up` ₹650 → fair (Priya paid ₹600 
 - The funding account starts at **₹2,000**. A bigger payout is accepted as **`PENDING`** with message "Funding account has insufficient balance" and **nothing is paid**. Janus should tell the household the payout is on hold, not that it failed or succeeded.
 - Reusing a `clientReferenceId` or `merchant_*_reference` returns `DUPLICATE_REQUEST`: nothing is paid twice. Use a fresh reference per new payment, e.g. based on the job id.
 
-**Is this technician who he says he is (name ↔ UPI ID)?** Pine Labs has no such API. Use the custom capability `technician_identity_check` (coming in M9).
+**Is this technician who he says he is (name ↔ UPI ID)?** Pine Labs has no such API. Use the custom capability `technician_identity_check` on `mcp_janus_custom_pict` (see below).
+
+## Custom capabilities (partner data Janus can use)
+
+- **Is the technician really here?** When he shares his WhatsApp location, call `proof_of_presence {job_id, technician_phone, latitude, longitude, timestamp: received_at}` → `present` true (within 200 m) / false / "unknown" (no location, older than 15 min, or not this job's technician), with `distance_m` and `minutes_from_slot`. Use it before marking the job `in_progress` or when the household says he never came.
+- **Nobody available?** `technician_discovery {appliance_type, latitude, longitude, radius_m}` lists nearby businesses (from Delhivery POI data) with phone, rating, distance and ETA. From Priya's home: AC → Shree Sai Cooling (1.2 km, ~4 min), Om Electricals (2.7 km).
+- **Is he who he says?** `technician_identity_check {name, phone, upi_id?}` → `verified` / `mismatch` (registered name shown masked) / `not_found`. Check before paying a technician the household doesn't know. Demo: Ramesh and Suresh verify; Santosh's number is registered to someone else (mismatch); Anil isn't a Pine Labs merchant (not_found).
 
 ## Demo data (after a reset)
 
@@ -226,9 +232,9 @@ Neighbours (3 other flats, never named to Priya) add AC gas top-up payments of �
 | `pinelabs.next_mandate` | declined, limit_exceeded, timeout, malformed | One-Time Mandate (`declined` hits `create_mandate_payment`; the others hit `create_ot_subscription`) | **yes** |
 | `pinelabs.next_subscription` | declined, timeout, malformed | UPI AutoPay (`declined` hits `create_mandate_payment`; the others hit `create_subscription`) | **yes** |
 | `pinelabs.next_payout` | insufficient_balance, failed, timeout, malformed | `create_payout` | **yes** |
-| `custom.next_presence` | not_present, no_location, stale_location, timeout | proof_of_presence | M9 |
-| `custom.next_discovery` | none_found, timeout | technician_discovery | M9 |
-| `custom.next_identity` | verified, not_found, mismatch, timeout | technician_identity_check | M9 |
+| `custom.next_presence` | not_present, no_location, stale_location, timeout | proof_of_presence | **yes** |
+| `custom.next_discovery` | none_found, timeout | technician_discovery | **yes** |
+| `custom.next_identity` | verified, not_found, mismatch, timeout | technician_identity_check | **yes** |
 | `gnani.next_stt` | timeout, malformed, low_confidence | gnani_speech_to_text | **yes** |
 | `gnani.next_tts` | timeout, malformed | gnani_text_to_speech | **yes** |
 
@@ -1309,6 +1315,64 @@ _No inputs._
 Example:
 ```json
 {"tool":"get_payout_balance","arguments":{}}
+```
+
+## Connector `mcp_janus_custom_pict` — 3 tools
+
+URL: `https://janus-server.vercel.app/custom/mcp` (server name `janus_custom`)
+
+### `proof_of_presence`
+
+Is the technician really at the household? Compares the location he shared (latitude/longitude + when it was taken) with the household's geocoded address and the job's agreed slot. present: true (within 200 m), false (farther away), or unknown (no location shared, location older than 15 minutes, or he isn't this job's technician). Partner: Delhivery (GPS pings and geocoded addresses).
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `job_id` | string | yes |  |
+| `technician_phone` | string | yes | Phone number, E.164 preferred (+919876543210). Also accepts spaces/dashes, a 10-digit Indian number or a 'whatsapp:' prefix. |
+| `latitude` | number \| null | no | From the WhatsApp location he shared; omit or null if he shared none |
+| `longitude` | number \| null | no |  |
+| `timestamp` | datetime (ISO, with offset) | yes | When the location was taken (ISO with offset), e.g. the message's received_at |
+
+**Returns** (besides `ok: true`): `partner: "Delhivery"`, `present` (true | false | "unknown"), `distance_m`, `minutes_from_slot`, `location_age_minutes`, `reason` (at_household | too_far | no_location | stale_location | not_job_technician | household_not_geocoded), `explanation`, `technician`, `household_location`, `confirmed_slot`
+
+Example:
+```json
+{"tool":"proof_of_presence","arguments":{"job_id":"job_…","technician_phone":"+918369502720","latitude":18.5604,"longitude":73.7813,"timestamp":"2026-10-03T17:05:00+05:30"}}
+```
+
+### `technician_discovery`
+
+Find repair businesses near a location that fix this appliance, nearest first: name, business, phone, skills, rating, distance_m and motorcycle ETA, source 'delhivery_poi'. Use when the household's own and society technicians are unavailable. Partner: Delhivery (POI / business data behind its Autosuggest).
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `appliance_type` | string | yes |  |
+| `latitude` | number | yes |  |
+| `longitude` | number | yes |  |
+| `radius_m` | integer | no | default `3000` |
+
+**Returns** (besides `ok: true`): `partner: "Delhivery"`, `count`, `technicians[]` {name, business_name, phone, skills, rating, address, distance_m, eta_minutes_motorcycle, already_known_technician_id, source}, `reason` (found | none_found), `nearest_outside_radius_m` + `hint` when none found
+
+Example:
+```json
+{"tool":"technician_discovery","arguments":{"appliance_type":"ac","latitude":18.5603,"longitude":73.7812,"radius_m":3000}}
+```
+
+### `technician_identity_check`
+
+Is this technician who he says he is? Checks his name, phone and (optionally) UPI ID against the KYC Pine Labs holds for merchants it onboarded for UPI/QR acceptance. status: verified (name matches; UPI too if given), mismatch (phone is a Pine Labs merchant but the name or UPI ID differs; registered name is masked), not_found (not a Pine Labs merchant). Use before paying a new technician. Partner: Pine Labs (merchant KYC).
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `name` | string | yes |  |
+| `phone` | string | yes | Phone number, E.164 preferred (+919876543210). Also accepts spaces/dashes, a 10-digit Indian number or a 'whatsapp:' prefix. |
+| `upi_id` | string | no |  |
+
+**Returns** (besides `ok: true`): `partner: "Pine Labs"`, `status` (verified | mismatch | not_found), `matched_fields[]`, `mismatched_fields[]`, `merchant` {display_name, city, onboarded_at}, `registered_name_hint` (masked, on mismatch), `checked_at`, `explanation`
+
+Example:
+```json
+{"tool":"technician_identity_check","arguments":{"name":"Ramesh Patil","phone":"+918369502720","upi_id":"ramesh.cooling@okaxis"}}
 ```
 
 <!-- TOOLS:END -->

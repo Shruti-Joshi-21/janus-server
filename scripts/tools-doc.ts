@@ -21,6 +21,7 @@ const CONNECTORS: Record<string, { path: string; connector: string }> = {
   gnani_janus: { path: "/gnani/mcp", connector: "mcp_gnani_janus_pict" },
   delhivery_janus: { path: "/delhivery/mcp", connector: "mcp_delhivery_janus_pict" },
   pinelabs_janus: { path: "/pinelabs/mcp", connector: "mcp_pinelabs_janus_pict" },
+  janus_custom: { path: "/custom/mcp", connector: "mcp_janus_custom_pict" },
 };
 
 // What each tool returns (besides ok:true) and one example call. Keep in step with lib/janus-core/.
@@ -114,6 +115,18 @@ const NOTES: Record<string, { returns: string; example: Record<string, unknown> 
   create_payout: { returns: "`clientReferenceId`, `paymentReferenceId`, `requestReferenceId`, `status` (SCHEDULED | PENDING = insufficient balance | FAILED), `message`, `amount`, `scheduledAt`, `_links`", example: { clientReferenceId: "job-123-payout", payeeName: "Ramesh Patil", vpa: "ramesh.cooling@okaxis", amount: { value: 120000, currency: "INR" }, mode: "UPI", remarks: "AC repair" } },
   get_payouts: { returns: "`payments[]` {status, message, bankTransactionReferenceId (UTR) when SUCCESS, amount, fees, tax, …}, `totalRecords`, `totalPages`, `nextPage`, `_links`", example: { clientReferenceId: "job-123-payout" } },
   get_payout_balance: { returns: "`accountNumber`, `branchCode`, `balance` {value (paise), currency}", example: {} },
+  proof_of_presence: {
+    returns: "`partner: \"Delhivery\"`, `present` (true | false | \"unknown\"), `distance_m`, `minutes_from_slot`, `location_age_minutes`, `reason` (at_household | too_far | no_location | stale_location | not_job_technician | household_not_geocoded), `explanation`, `technician`, `household_location`, `confirmed_slot`",
+    example: { job_id: "job_…", technician_phone: "+918369502720", latitude: 18.5604, longitude: 73.7813, timestamp: "2026-10-03T17:05:00+05:30" },
+  },
+  technician_discovery: {
+    returns: "`partner: \"Delhivery\"`, `count`, `technicians[]` {name, business_name, phone, skills, rating, address, distance_m, eta_minutes_motorcycle, already_known_technician_id, source}, `reason` (found | none_found), `nearest_outside_radius_m` + `hint` when none found",
+    example: { appliance_type: "ac", latitude: 18.5603, longitude: 73.7812, radius_m: 3000 },
+  },
+  technician_identity_check: {
+    returns: "`partner: \"Pine Labs\"`, `status` (verified | mismatch | not_found), `matched_fields[]`, `mismatched_fields[]`, `merchant` {display_name, city, onboarded_at}, `registered_name_hint` (masked, on mismatch), `checked_at`, `explanation`",
+    example: { name: "Ramesh Patil", phone: "+918369502720", upi_id: "ramesh.cooling@okaxis" },
+  },
   checks_due: { returns: "`now`, `count`, `checks[]` (with job_state, technician_id)", example: {} },
   check_done: { returns: "`check`", example: { check_id: "chk_…", outcome: "Ramesh replied, slot 5 PM" } },
 };
