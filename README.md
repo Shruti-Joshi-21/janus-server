@@ -1,6 +1,6 @@
 # Janus server (Track A)
 
-Everything **Janus** calls. Janus is the AI agent (built on Pine Labs' AgenticOrg platform) that coordinates household appliance repairs in India for Team PICT Pune, The Ken's Case Competition 2026, Round 3.
+Everything **Janus** calls. Janus is the AI agent (built on Pine Labs' AgenticOrg platform) that coordinates household appliance repairs in India for Team The Phantom Elite, The Ken's Case Build Competition 2026.
 
 This is one Next.js app on Vercel that exposes **six MCP servers** (one per AgenticOrg connector), one **WhatsApp webhook**, and a **call log**.
 
