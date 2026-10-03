@@ -9,6 +9,7 @@ export async function resetDatabase({ withCounts = true } = {}): Promise<Record<
   const dbDir = path.join(process.cwd(), "db");
   const schema = await readFile(path.join(dbDir, "schema.sql"), "utf8");
   const seed = await readFile(path.join(dbDir, "seed.sql"), "utf8");
+  const ops = await readFile(path.join(dbDir, "ops.sql"), "utf8"); // ops schema is created if missing, never dropped
 
   // Pool (not the `sql` helper) because schema/seed files contain many statements in one go.
   const pool = new Pool({ connectionString: requireDatabaseUrl() });
@@ -16,6 +17,7 @@ export async function resetDatabase({ withCounts = true } = {}): Promise<Record<
     await pool.query("DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;");
     await pool.query(schema);
     await pool.query(seed);
+    await pool.query(ops);
     if (!withCounts) return {};
 
     const { rows: tables } = await pool.query<{ table_name: string }>(

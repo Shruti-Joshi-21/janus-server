@@ -16,6 +16,8 @@ If a name here differs from the prompt, the prompt is wrong.
 
 When new tools are added to a connector, AgenticOrg only sees them after the connector is archived and registered again (same name).
 
+**Every call is logged on the server** (time, connector, tool, inputs, result), and resets don't erase the log. To check whether Janus really called a tool during a test, tell Track A the time; they run `npm run calls` and see within seconds.
+
 ## Conventions (all tools)
 
 - **Every answer is JSON.** Success: `{"ok": true, ...}`. Failure: `{"ok": false, "error_code": "JOB_NOT_FOUND", "message": "No job with id \"job_x\"."}` — some failures add extra fields (listed under Error codes). Janus should read `ok` first, never assume success.
