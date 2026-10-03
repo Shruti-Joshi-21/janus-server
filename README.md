@@ -2,7 +2,7 @@
 
 Everything **Janus** calls. Janus is the AI agent (built on Pine Labs' AgenticOrg platform) that coordinates household appliance repairs in India for Team The Phantom Elite, The Ken's Case Build Competition 2026.
 
-This is one Next.js app on Vercel that exposes **one combined MCP server** (`/janus/mcp`, all 62 tools, the only one registered on AgenticOrg) plus the six per-group MCP routes it is built from, one **WhatsApp webhook**, and a **call log**.
+This is one Next.js app on Vercel that exposes **one combined MCP server** (`/janus/mcp`, all 64 tools, the only one registered on AgenticOrg) plus the six per-group MCP routes it is built from, one **WhatsApp webhook**, and a **call log**.
 
 - **[TOOLS.md](TOOLS.md)**: every tool, its inputs, outputs, example call and error codes. Janus's prompt must use these exact names.
 - **[MOCKS.md](MOCKS.md)**: for each mocked partner API, the documentation it was copied from and what is assumed.
@@ -11,13 +11,14 @@ This is one Next.js app on Vercel that exposes **one combined MCP server** (`/ja
 
 | Route | Register on AgenticOrg as | Shows up as | Tools | What it is |
 | --- | --- | --- | --- | --- |
-| `/janus-core/mcp` | `janus_core_pict` | `mcp_janus_core_pict` | 35 | Janus's own database: people, appliances, technicians, jobs, payments, ratings, complaints, follow-up checks, price fairness, failure switches, demo reset |
+| **`/janus/mcp`** | **`janus_pict`** (the only one to register) | `mcp_janus_pict` | **64** | Every tool below on one connector (AgenticOrg accepts MCP tools from only one connector per agent). Tool names `mcp_janus_pict__<tool>` |
+| `/janus-core/mcp` | `janus_core_pict` | `mcp_janus_core_pict` | 37 | Janus's own database: people, appliances, technicians, jobs, payments, ratings, complaints, follow-up checks, price fairness, failure switches, demo reset, WhatsApp inbox (`inbound_pending`, `inbound_mark_done`) |
 | `/gnani/mcp` | `gnani_janus_pict` | `mcp_gnani_janus_pict` | 2 | **Real** Gnani speech-to-text (WhatsApp voice notes) and text-to-speech (voice replies) |
 | `/delhivery/mcp` | `delhivery_janus_pict` | `mcp_delhivery_janus_pict` | 6 | **Mock** of Delhivery Maps: validate / verify / geocode / reverse-geocode addresses, distance matrix, autosuggest |
 | `/pinelabs/mcp` | `pinelabs_janus_pict` | `mcp_pinelabs_janus_pict` | 13 | **Mock** of Pine Labs One-Time Mandate, UPI AutoPay subscriptions and Payouts |
 | `/custom/mcp` | `janus_custom_pict` | `mcp_janus_custom_pict` | 3 | Custom capabilities: `proof_of_presence`, `technician_discovery` (partner Delhivery), `technician_identity_check` (partner Pine Labs) |
 | `/whatsapp/mcp` | `whatsapp_janus_pict` | `mcp_whatsapp_janus_pict` | 3 | **Real** Twilio: send WhatsApp messages, make AI-disclosed calls, check delivery (only to known members/technicians) |
-| `/api/twilio/inbound` | (Twilio webhook) | | | Incoming WhatsApp → JSON → emailed to the Janus inbox |
+| `/api/twilio/inbound` | (Twilio webhook) | | | Incoming WhatsApp → saved in Janus's inbox (`inbound_events`), plus a copy emailed to janus.pict.demo@gmail.com |
 | `/api/health` | | | | Returns `{"ok": true}` |
 
 Live base URL: `https://janus-server.vercel.app`
@@ -25,13 +26,14 @@ Live base URL: `https://janus-server.vercel.app`
 ## How a message flows
 
 ```
-Household's WhatsApp ──► Twilio ──► /api/twilio/inbound ──► email to janus.pict.demo@gmail.com ──► AgenticOrg "Email Received" trigger ──► Janus
-                                                                                                                                        │
-Janus calls tools on the 5 MCP connectors (all requests recorded in the call log) ◄──────────────────────────────────────────────────┘
-Janus replies on WhatsApp through our /whatsapp/mcp connector (real Twilio), because AgenticOrg's native Twilio connector failed its connection test.
+Household's WhatsApp ──► Twilio ──► /api/twilio/inbound ──► saved in Janus's inbox (inbound_events); copy emailed to janus.pict.demo@gmail.com
+                                                                         │
+Scheduled Janus run (e.g. every minute) ──► inbound_pending ◄────────────┘
+        └─► handles each message with the janus_pict tools ──► replies with send_whatsapp (real Twilio) ──► inbound_mark_done
+All tool calls are recorded in the call log (npm run calls).
 ```
 
-AgenticOrg has no webhook URL our role can use (its `POST /api/v1/workflows/{id}/run` needs an org-admin API key), so incoming messages travel by **email**. If an admin key becomes available, set `AGENTICORG_WEBHOOK_URL` and `AGENTICORG_API_KEY` and the server posts there instead, with no code change.
+Our AgenticOrg login isn't an org admin, so it can't create a workflow API key (`POST /api/v1/workflows/{id}/run`) or register the native Gmail connector (`Missing scope: agenticorg:admin`). So Janus **polls its inbox** on a schedule (Option C). If an admin key becomes available, set `AGENTICORG_WEBHOOK_URL` and `AGENTICORG_API_KEY` and the server also pushes each message to the workflow, with no code change.
 
 ## Run it locally
 
@@ -92,7 +94,7 @@ Vercel deploys automatically when you push to GitHub (`git push`). After adding 
 
 ## Registering a connector on AgenticOrg
 
-Connectors → Register Connector: Provider **Custom / Generic Connector**, name from the table above, tick **MCP**, MCP Server URL = live base URL + route, Category **Ops**, Auth Type **Api Key**, API Key = `MCP_API_KEY` (only the value, without quotes or `MCP_API_KEY=`). Register only **`janus_pict`** → `/janus/mcp`, and register it **last** (after Gmail / Agent Scheduler), in the shared login, where the Janus agent lives (connectors are only visible to the login that registered them).
+Connectors → Register Connector: Provider **Custom / Generic Connector**, name from the table above, tick **MCP**, MCP Server URL = live base URL + route, Category **Ops**, Auth Type **Api Key**, API Key = `MCP_API_KEY` (only the value, without quotes or `MCP_API_KEY=`). Register only **`janus_pict`** → `/janus/mcp`, and register it **last** (after any native connector such as Agent Scheduler), in the shared login, where the Janus agent lives (connectors are only visible to the login that registered them).
 
 If registration says "Could not discover tools from MCP server: ExceptionGroup" while the server is up, the API key is wrong. Check the field shows exactly 64 masked characters.
 

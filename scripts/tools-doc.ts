@@ -140,6 +140,14 @@ const NOTES: Record<string, { returns: string; example: Record<string, unknown> 
     returns: "`message_sid`, `status` (queued | sent | delivered | read | failed | undelivered), `error_code_twilio` (also as `twilio_error_code`), `error_hint` (when failed), `to`, `date_sent`, `partner`",
     example: { message_sid: "SM…" },
   },
+  inbound_pending: {
+    returns: "`count`, `messages[]` {event_id, from_phone, party {type: member (member_id, name, role, household_id, household_name, language) | technician (technician_id, name) | unknown}, text, media_url, media_type, latitude, longitude, received_at, twilio_message_sid, attempt}, `still_waiting`",
+    example: { limit: 5 },
+  },
+  inbound_mark_done: {
+    returns: "`event_id`, `status: done`, `already_done`, `outcome`, `handled_at`. Errors: EVENT_NOT_FOUND",
+    example: { event_id: "evt_…", outcome: "replied; job job_… created for the AC" },
+  },
   checks_due: { returns: "`now`, `count`, `checks[]` (with job_state, technician_id)", example: {} },
   check_done: { returns: "`check`", example: { check_id: "chk_…", outcome: "Ramesh replied, slot 5 PM" } },
 };

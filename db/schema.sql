@@ -344,7 +344,8 @@ CREATE TABLE scenarios (
   created_at  timestamptz NOT NULL DEFAULT now()
 );
 
--- Copy of every incoming WhatsApp message (from the Twilio webhook).
+-- Every incoming WhatsApp message (from the Twilio webhook). Also Janus's inbox queue: a scheduled Janus run
+-- claims new messages with inbound_pending and closes them with inbound_mark_done (see lib/janus-core/inbound.ts).
 CREATE TABLE inbound_events (
   id                  text PRIMARY KEY DEFAULT new_id('evt'),
   channel             text NOT NULL DEFAULT 'whatsapp',
@@ -360,5 +361,11 @@ CREATE TABLE inbound_events (
   forward_via         text,             -- 'agenticorg' | 'email' | 'none'
   forward_status      integer,          -- HTTP status from AgenticOrg, or 250 when the email was sent
   forward_error       text,
+  status              text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'claimed', 'done')),
+  claimed_at          timestamptz,      -- a claim older than 5 minutes is treated as abandoned
+  claim_count         integer NOT NULL DEFAULT 0,
+  handled_at          timestamptz,
+  outcome             text,             -- what Janus did with it
   created_at          timestamptz NOT NULL DEFAULT now()
 );
+CREATE INDEX inbound_events_queue_idx ON inbound_events (status, received_at);

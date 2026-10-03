@@ -5,19 +5,19 @@ If a name here differs from the prompt, the prompt is wrong.
 
 ## Status
 
-> **Register only ONE connector on AgenticOrg: `janus_pict` → `https://janus-server.vercel.app/janus/mcp` (all 62 tools).** On the platform every tool is then named `mcp_janus_pict__<tool>`, e.g. `mcp_janus_pict__get_party_by_phone`, `mcp_janus_pict__validate_address`, `mcp_janus_pict__send_whatsapp`. Reason: AgenticOrg validates an agent's MCP tools against a single connector's catalogue, so two or more MCP connectors can't be attached together. The per-group routes below still exist for testing; the tables further down are grouped by them, but the tool names, inputs and answers are identical on `/janus/mcp`. Don't attach `ping`, `scenario_set`, `scenario_list`, `scenario_clear` or `reset_demo_data` to Janus (testers call them directly).
+> **Register only ONE connector on AgenticOrg: `janus_pict` → `https://janus-server.vercel.app/janus/mcp` (all 64 tools).** On the platform every tool is then named `mcp_janus_pict__<tool>`, e.g. `mcp_janus_pict__get_party_by_phone`, `mcp_janus_pict__validate_address`, `mcp_janus_pict__send_whatsapp`. Reason: AgenticOrg validates an agent's MCP tools against a single connector's catalogue, so two or more MCP connectors can't be attached together. The per-group routes below still exist for testing; the tables further down are grouped by them, but the tool names, inputs and answers are identical on `/janus/mcp`. Don't attach `ping`, `scenario_set`, `scenario_list`, `scenario_clear` or `reset_demo_data` to Janus (testers call them directly).
 
 Per-group routes (all live and tested; 268 checks) (204 checks on the live server, 3 Oct 2026). Base URL `https://janus-server.vercel.app`.
 
 | Connector on AgenticOrg (register as) | What | Tools |
 | --- | --- | --- |
-| `mcp_janus_core_pict` (`janus_core_pict`) | Janus's database: people, appliances, technicians, jobs, payments, ratings, complaints, follow-up checks, price fairness, failure switches, demo reset | 35 |
+| `mcp_janus_core_pict` (`janus_core_pict`) | Janus's database: people, appliances, technicians, jobs, payments, ratings, complaints, follow-up checks, price fairness, failure switches, demo reset + the WhatsApp inbox (`inbound_pending`, `inbound_mark_done`) | 37 |
 | `mcp_gnani_janus_pict` (`gnani_janus_pict`) | **Real** Gnani speech-to-text (WhatsApp voice notes) and text-to-speech (voice replies) | 2 |
 | `mcp_delhivery_janus_pict` (`delhivery_janus_pict`) | Delhivery Maps **mock**: validate / verify / geocode / reverse-geocode addresses, distance matrix, autosuggest. Delhivery's exact response bodies (not our `{ok}` shape) | 6 |
 | `mcp_pinelabs_janus_pict` (`pinelabs_janus_pict`) | Pine Labs **mock**: One-Time Mandate, UPI AutoPay subscriptions, Payouts. Pine Labs' exact bodies; **amounts in paise** | 13 |
 | `mcp_janus_custom_pict` (`janus_custom_pict`) | Custom capabilities: `proof_of_presence` and `technician_discovery` (partner Delhivery), `technician_identity_check` (partner Pine Labs). Our `{ok}` format plus a `partner` field | 3 |
 | `mcp_whatsapp_janus_pict` (`whatsapp_janus_pict`) | **Real** Twilio: `send_whatsapp`, `make_call` (AI-disclosed), `get_message_status`. Only to known members / technicians. Our `{ok}` format | 3 |
-| Twilio webhook `/api/twilio/inbound` | Incoming WhatsApp → JSON `{channel, from_phone, text, media_url, media_type, latitude, longitude, received_at, twilio_message_sid}` → emailed to **janus.pict.demo@gmail.com** (subject `[janus-inbound] WhatsApp from +91…`, body = the JSON) | — |
+| Twilio webhook `/api/twilio/inbound` | Incoming WhatsApp → saved in Janus's inbox (read it with `inbound_pending`); a copy is also emailed to janus.pict.demo@gmail.com | — |
 
 When new tools are added to a connector, AgenticOrg only sees them after the connector is archived and registered again (same name).
 
@@ -126,6 +126,18 @@ Worked examples (demo data): AC `gas_top_up` ₹650 → fair (Priya paid ₹600 
 - **Is the technician really here?** When he shares his WhatsApp location, call `proof_of_presence {job_id, technician_phone, latitude, longitude, timestamp: received_at}` → `present` true (within 200 m) / false / "unknown" (no location, older than 15 min, or not this job's technician), with `distance_m` and `minutes_from_slot`. Use it before marking the job `in_progress` or when the household says he never came.
 - **Nobody available?** `technician_discovery {appliance_type, latitude, longitude, radius_m}` lists nearby businesses (from Delhivery POI data) with phone, rating, distance and ETA. From Priya's home: AC → Shree Sai Cooling (1.2 km, ~4 min), Om Electricals (2.7 km).
 - **Is he who he says?** `technician_identity_check {name, phone, upi_id?}` → `verified` / `mismatch` (registered name shown masked) / `not_found`. Check before paying a technician the household doesn't know. Demo: Ramesh and Suresh verify; Santosh's number is registered to someone else (mismatch); Anil isn't a Pine Labs merchant (not_found).
+
+## Receiving WhatsApp messages (Janus's inbox)
+
+AgenticOrg's Gmail "Email Received" trigger needs an org admin (`Missing scope: agenticorg:admin`), so Janus **checks its inbox on a schedule** instead of being woken by email. Every incoming WhatsApp message is stored by the server the moment it arrives.
+
+**Each scheduled run (e.g. every minute):**
+1. `inbound_pending {limit: 5}` → the oldest new messages, each with `event_id`, `text`, `media_url`/`media_type` (voice note → `gnani_speech_to_text`), `latitude`/`longitude` (shared location → `proof_of_presence`), and **`party`**: who sent it, already looked up (member with `household_id` and `language`, technician with `technician_id`, or `unknown`). No need to call `get_party_by_phone` first.
+2. Handle each message (reply with `send_whatsapp`, create/update jobs, …).
+3. `inbound_mark_done {event_id, outcome}` for each, with one line on what was done (e.g. "replied; job job_… created").
+4. Also call `checks_due` in the same run (technician-silent follow-ups, AMC reminders).
+
+Guarantees: `inbound_pending` **claims** what it returns, so an overlapping run never gets the same message. If a run dies before marking a message done, it comes back after **5 minutes** (with `attempt: 2`), so nothing is lost; check `attempt` > 1 to avoid repeating a reply that may already have been sent. Marking done twice is harmless. An empty list means nothing new.
 
 ## Sending WhatsApp messages and calls
 
@@ -260,7 +272,7 @@ The switches exist now; each mock starts obeying its keys when that milestone is
 
 <!-- TOOLS:START (generated by `npm run docs:tools`, do not edit by hand) -->
 
-## Connector `mcp_janus_core_pict` — 35 tools
+## Connector `mcp_janus_core_pict` — 37 tools
 
 URL: `https://janus-server.vercel.app/janus-core/mcp` (server name `janus_core`)
 
@@ -929,6 +941,37 @@ DANGER: wipes ALL data (jobs, payments, messages, scenario switches) and restore
 Example:
 ```json
 {"tool":"reset_demo_data","arguments":{"confirm":"RESET"}}
+```
+
+### `inbound_pending`
+
+New incoming WhatsApp messages to handle, oldest first (call this at the start of every scheduled run). Each message comes with who sent it (party: member with household, technician, or unknown) and is CLAIMED for this run, so another run won't get it. Handle each one, then call inbound_mark_done. A message not marked done within 5 minutes comes back (attempt goes up). Empty list = nothing new.
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `limit` | integer | no | default `5` |
+
+**Returns** (besides `ok: true`): `count`, `messages[]` {event_id, from_phone, party {type: member (member_id, name, role, household_id, household_name, language) | technician (technician_id, name) | unknown}, text, media_url, media_type, latitude, longitude, received_at, twilio_message_sid, attempt}, `still_waiting`
+
+Example:
+```json
+{"tool":"inbound_pending","arguments":{"limit":5}}
+```
+
+### `inbound_mark_done`
+
+Close an incoming message after handling it (event_id from inbound_pending), with a short outcome, e.g. 'replied, job job_… created' or 'ignored: spam'. Safe to call twice.
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `event_id` | string | yes |  |
+| `outcome` | string | yes |  |
+
+**Returns** (besides `ok: true`): `event_id`, `status: done`, `already_done`, `outcome`, `handled_at`. Errors: EVENT_NOT_FOUND
+
+Example:
+```json
+{"tool":"inbound_mark_done","arguments":{"event_id":"evt_…","outcome":"replied; job job_… created for the AC"}}
 ```
 
 ## Connector `mcp_gnani_janus_pict` — 2 tools

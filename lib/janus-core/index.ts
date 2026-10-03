@@ -3,6 +3,7 @@ import { z } from "zod";
 import { registerApplianceTools } from "./appliances";
 import { registerCheckTools } from "./checks";
 import { registerDemoTools } from "./demo";
+import { registerInboundTools } from "./inbound";
 import { registerJobTools } from "./jobs";
 import { registerMoneyTools } from "./money";
 import { registerPeopleTools } from "./people";
@@ -38,4 +39,5 @@ export function registerJanusCoreTools(server: McpServer) {
   registerPriceTools(server);
   registerCheckTools(server);
   registerDemoTools(server);
+  registerInboundTools(server);
 }
