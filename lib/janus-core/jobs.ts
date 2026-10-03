@@ -79,6 +79,14 @@ export function registerJobTools(server: McpServer) {
         if (appliance.brand_only && a.route === "local") {
           warnings.push(`${appliance.brand} ${appliance.type} is brand_only (warranty until ${appliance.warranty_end}). A local repair may void the warranty; consider route 'brand'.`);
         }
+        // The same complaint often arrives twice; point Janus at the job that's already open for this appliance.
+        const open = await sql`
+          SELECT id, state FROM jobs
+          WHERE appliance_id = ${a.appliance_id} AND state NOT IN ('closed', 'cancelled')
+          ORDER BY created_at DESC`;
+        if (open.length) {
+          warnings.push(`This ${appliance.type} already has an open job: ${open.map((j) => `${j.id} (${j.state})`).join(", ")}. If it's the same problem, use that job instead of this new one (and cancel this one with job_update state 'cancelled').`);
+        }
       }
       if (a.technician_id) await getOrFail("technicians", a.technician_id, "TECHNICIAN_NOT_FOUND", "technician");
       const [row] = await sql`

@@ -362,7 +362,7 @@ CREATE TABLE inbound_events (
   forward_status      integer,          -- HTTP status from AgenticOrg, or 250 when the email was sent
   forward_error       text,
   status              text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'claimed', 'done')),
-  claimed_at          timestamptz,      -- a claim older than 5 minutes is treated as abandoned
+  claimed_at          timestamptz,      -- a claim older than 2 minutes is treated as abandoned
   claim_count         integer NOT NULL DEFAULT 0,
   handled_at          timestamptz,
   outcome             text,             -- what Janus did with it

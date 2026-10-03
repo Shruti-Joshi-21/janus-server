@@ -138,7 +138,7 @@ AgenticOrg's Gmail "Email Received" trigger needs an org admin (`Missing scope: 
 3. `inbound_mark_done {event_id, outcome}` for each, with one line on what was done (e.g. "replied; job job_… created").
 4. Also call `checks_due` in the same run (technician-silent follow-ups, AMC reminders).
 
-Guarantees: `inbound_pending` **claims** what it returns, so an overlapping run never gets the same message. If a run dies before marking a message done, it comes back after **5 minutes** (with `attempt: 2`), so nothing is lost; check `attempt` > 1 to avoid repeating a reply that may already have been sent. Marking done twice is harmless. An empty list means nothing new.
+Guarantees: `inbound_pending` **claims** what it returns, so an overlapping run never gets the same message. If a run dies before marking a message done, it comes back after **2 minutes** (with `attempt: 2`), so nothing is lost; check `attempt` > 1 to avoid repeating a reply that may already have been sent. Marking done twice is harmless. An empty list means nothing new.
 
 ## Sending WhatsApp messages and calls
 
@@ -146,6 +146,7 @@ AgenticOrg's native Twilio connector failed its connection test, so Janus sends 
 - `send_whatsapp {to, body?, media_url?}` → `message_sid`, `status` (usually `queued`). Body max 1,600 characters; media_url must be public https (e.g. a `gnani_text_to_speech` `audio_url` for a voice reply).
 - **Guard:** only phones that are a household member or technician in janus_core; anyone else → `RECIPIENT_UNKNOWN`. Add a technician found by discovery with `technician_add` first.
 - If WhatsApp rejects the message within a few seconds you get the reason instead of "queued": `NOT_JOINED_SANDBOX` (they must send the join code to +1 415 523 8886), `OUTSIDE_24H_WINDOW` (no message from them in 24 h → use Gmail).
+- Messages to household members are **logged as notifications automatically** (`notification_list` shows them); Janus doesn't need to call `notification_log` for its WhatsApps.
 - `get_message_status {message_sid}` → queued / sent / delivered / read / failed / undelivered (+ `error_hint`). Confirm delivery before telling someone "sent". After `TWILIO_TIMEOUT`, check status before resending; the tool never resends by itself.
 - `make_call {to, message, language: "en-IN" | "hi-IN"}` → one voice call that always begins "Hello, this is Janus, an AI assistant." Returns `NO_VOICE_NUMBER` if the Twilio account has no voice number configured.
 - Errors: RECIPIENT_UNKNOWN, INVALID_INPUT, INVALID_PHONE, NOT_JOINED_SANDBOX, OUTSIDE_24H_WINDOW, TWILIO_AUTH_FAILED (tell Track A), TWILIO_RATE_LIMITED (wait and retry), TWILIO_TIMEOUT, TWILIO_ERROR (+ `twilio_code`, `twilio_message`), NO_VOICE_NUMBER, MESSAGE_NOT_FOUND.
@@ -612,7 +613,7 @@ Open a repair job. Use route 'brand' for appliances that must go to the brand's 
 | `issue` | string | no | The problem in the household's words |
 | `brand_complaint_no` | string | no |  |
 
-**Returns** (besides `ok: true`): `job` (with household, appliance, technician), `payments[]`, `ratings[]`, `complaints[]`, `warnings[]`
+**Returns** (besides `ok: true`): `job` (with household, appliance, technician), `payments[]`, `ratings[]`, `complaints[]`, `warnings[]` (brand_only route, or an open job already exists for this appliance)
 
 Example:
 ```json
@@ -946,7 +947,7 @@ Example:
 
 ### `inbound_pending`
 
-New incoming WhatsApp messages to handle, oldest first (call this at the start of every scheduled run). Each message comes with who sent it (party: member with household, technician, or unknown) and is CLAIMED for this run, so another run won't get it. Handle each one, then call inbound_mark_done. A message not marked done within 5 minutes comes back (attempt goes up). Empty list = nothing new.
+New incoming WhatsApp messages to handle, oldest first (call this at the start of every scheduled run). Each message comes with who sent it (party: member with household, technician, or unknown) and is CLAIMED for this run, so another run won't get it. Handle each one, then call inbound_mark_done. A message not marked done within 2 minutes comes back (attempt goes up). Empty list = nothing new.
 
 | Input | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -1441,7 +1442,7 @@ URL: `https://janus-server.vercel.app/whatsapp/mcp` (server name `whatsapp_janus
 
 ### `send_whatsapp`
 
-Send one real WhatsApp message from the Twilio sandbox number to a known household member or technician (anyone else is refused: RECIPIENT_UNKNOWN). Give body (max 1600 characters) and/or media_url (public https link, e.g. a gnani_text_to_speech audio_url for a voice reply). Returns message_sid and Twilio's status (usually queued). If WhatsApp rejects it within a few seconds (not joined the sandbox, outside the 24-hour window) you get that error instead. Never resend after TWILIO_TIMEOUT without checking get_message_status first.
+Send one real WhatsApp message from the Twilio sandbox number to a known household member or technician (anyone else is refused: RECIPIENT_UNKNOWN). Give body (max 1600 characters) and/or media_url (public https link, e.g. a gnani_text_to_speech audio_url for a voice reply). Returns message_sid and Twilio's status (usually queued). If WhatsApp rejects it within a few seconds (not joined the sandbox, outside the 24-hour window) you get that error instead. Never resend after TWILIO_TIMEOUT without checking get_message_status first. Messages to household members are logged as notifications automatically (no need to call notification_log).
 
 | Input | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -1449,7 +1450,7 @@ Send one real WhatsApp message from the Twilio sandbox number to a known househo
 | `body` | string | no |  |
 | `media_url` | string | no | Public https URL of the media to attach |
 
-**Returns** (besides `ok: true`): `message_sid`, `status` (Twilio's, usually queued), `to`, `recipient` {name, type}, `sent_at` (ISO UTC), `partner`. Errors: RECIPIENT_UNKNOWN, NOT_JOINED_SANDBOX, OUTSIDE_24H_WINDOW, INVALID_PHONE, TWILIO_TIMEOUT, TWILIO_RATE_LIMITED, TWILIO_AUTH_FAILED, TWILIO_ERROR (+ twilio_code, twilio_message)
+**Returns** (besides `ok: true`): `message_sid`, `status` (Twilio's, usually queued), `to`, `recipient` {name, type, household_id}, `notification_id` (auto-logged for household members; null for technicians), `sent_at` (ISO UTC), `partner`. Errors: RECIPIENT_UNKNOWN, NOT_JOINED_SANDBOX, OUTSIDE_24H_WINDOW, INVALID_PHONE, TWILIO_TIMEOUT, TWILIO_RATE_LIMITED, TWILIO_AUTH_FAILED, TWILIO_ERROR (+ twilio_code, twilio_message)
 
 Example:
 ```json

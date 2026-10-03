@@ -49,7 +49,7 @@ const NOTES: Record<string, { returns: string; example: Record<string, unknown> 
   },
   society_log_add: { returns: "`technician`, `technician_already_known`, `log_entry`", example: { society_id: "soc_sai_heights", technician: { name: "Prakash", phone: "+919822001122", skills: ["fridge"] }, added_by_member_id: "mem_priya", note: "Quick and polite" } },
   society_log_search: { returns: "`technicians[]` each with recommendations, notes[], rating_summary, open_complaints, typical_price_range", example: { society_id: "soc_sai_heights", appliance_type: "ro_purifier" } },
-  job_create: { returns: "`job` (with household, appliance, technician), `payments[]`, `ratings[]`, `complaints[]`, `warnings[]`", example: { household_id: "hh_priya", appliance_id: "app_priya_ac", technician_id: "tech_ramesh", service_type: "gas_top_up", issue: "AC not cooling", urgent: true } },
+  job_create: { returns: "`job` (with household, appliance, technician), `payments[]`, `ratings[]`, `complaints[]`, `warnings[]` (brand_only route, or an open job already exists for this appliance)", example: { household_id: "hh_priya", appliance_id: "app_priya_ac", technician_id: "tech_ramesh", service_type: "gas_top_up", issue: "AC not cooling", urgent: true } },
   job_get: { returns: "`job`, `payments[]`, `ratings[]`, `complaints[]`", example: { job_id: "job_priya_ac_gas_2025" } },
   job_update: { returns: "same as job_get", example: { job_id: "job_…", fields: { state: "slot_confirmed", confirmed_slot: "2026-10-03T17:00:00+05:30" } } },
   jobs_open_for_party: { returns: "`type`, `phone`, `household_id` or `technician_id`, `jobs[]` (urgent first, newest first)", example: { phone: "+919000000011" } },
@@ -129,7 +129,7 @@ const NOTES: Record<string, { returns: string; example: Record<string, unknown> 
     example: { name: "Ramesh Patil", phone: "+918369502720", upi_id: "ramesh.cooling@okaxis" },
   },
   send_whatsapp: {
-    returns: "`message_sid`, `status` (Twilio's, usually queued), `to`, `recipient` {name, type}, `sent_at` (ISO UTC), `partner`. Errors: RECIPIENT_UNKNOWN, NOT_JOINED_SANDBOX, OUTSIDE_24H_WINDOW, INVALID_PHONE, TWILIO_TIMEOUT, TWILIO_RATE_LIMITED, TWILIO_AUTH_FAILED, TWILIO_ERROR (+ twilio_code, twilio_message)",
+    returns: "`message_sid`, `status` (Twilio's, usually queued), `to`, `recipient` {name, type, household_id}, `notification_id` (auto-logged for household members; null for technicians), `sent_at` (ISO UTC), `partner`. Errors: RECIPIENT_UNKNOWN, NOT_JOINED_SANDBOX, OUTSIDE_24H_WINDOW, INVALID_PHONE, TWILIO_TIMEOUT, TWILIO_RATE_LIMITED, TWILIO_AUTH_FAILED, TWILIO_ERROR (+ twilio_code, twilio_message)",
     example: { to: "+918530921384", body: "Ramesh confirmed: he'll come today at 5 PM." },
   },
   make_call: {

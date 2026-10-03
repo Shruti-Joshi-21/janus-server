@@ -75,8 +75,9 @@ All are in Vercel → Settings → Environment Variables (and `.env.local` for l
 | `npm run build` | Production build (what Vercel runs) |
 | `npm run typecheck` | TypeScript check |
 | `npm run reset` | **Wipes the database** and restores the demo cast (the call log is kept) |
+| `npm run inbox` | Janus's WhatsApp inbox (last 10 messages: status, attempt, claimed/done times, outcome) and pending checks. Read-only |
 | `npm run calls` | Last 20 tool calls to any connector, in IST. `npm run calls -- 50` for more; `npm run calls -- 20 all` to include registrations and handshakes |
-| `npm test` | Every test suite against the local server; `npm test -- https://janus-server.vercel.app` for the live server. **Resets the database** before, between and after suites |
+| `npm test` | Every test suite against the local server (**resets the database: not while anyone is testing Janus**); `npm test -- https://janus-server.vercel.app` for the live server. **Resets the database** before, between and after suites |
 | `npm run send:test -- +91… "text"` | Sends ONE real WhatsApp message through the live `send_whatsapp` tool, then checks delivery |
 | `npm run docs:tools` | Regenerates the tool reference in TOOLS.md from a running server (`npm run docs:tools -- https://janus-server.vercel.app` for live) |
 

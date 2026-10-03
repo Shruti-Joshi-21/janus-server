@@ -15,10 +15,10 @@ const FAILED = ["failed", "undelivered"];
 // Safety guard: only message people Janus already knows, never a stranger's real number.
 async function knownRecipient(rawPhone: string) {
   const phone = phoneOrFail(rawPhone);
-  const [member] = await sql`SELECT name FROM members WHERE phone = ${phone}`;
-  if (member) return { phone, name: member.name as string, type: "member" };
+  const [member] = await sql`SELECT id, name, household_id FROM members WHERE phone = ${phone}`;
+  if (member) return { phone, name: member.name as string, type: "member", member_id: member.id as string, household_id: member.household_id as string };
   const [tech] = await sql`SELECT name FROM technicians WHERE phone = ${phone}`;
-  if (tech) return { phone, name: tech.name as string, type: "technician" };
+  if (tech) return { phone, name: tech.name as string, type: "technician", member_id: null, household_id: null };
   throw new ToolError("RECIPIENT_UNKNOWN", `${phone} is not a known household member or technician. Add them first (member_add or technician_add).`);
 }
 
@@ -26,7 +26,7 @@ export function registerWhatsAppTools(server: McpServer) {
   addTool(
     server,
     "send_whatsapp",
-    `Send one real WhatsApp message from the Twilio sandbox number to a known household member or technician (anyone else is refused: RECIPIENT_UNKNOWN). Give body (max ${MAX_BODY} characters) and/or media_url (public https link, e.g. a gnani_text_to_speech audio_url for a voice reply). Returns message_sid and Twilio's status (usually queued). If WhatsApp rejects it within a few seconds (not joined the sandbox, outside the 24-hour window) you get that error instead. Never resend after TWILIO_TIMEOUT without checking get_message_status first.`,
+    `Send one real WhatsApp message from the Twilio sandbox number to a known household member or technician (anyone else is refused: RECIPIENT_UNKNOWN). Give body (max ${MAX_BODY} characters) and/or media_url (public https link, e.g. a gnani_text_to_speech audio_url for a voice reply). Returns message_sid and Twilio's status (usually queued). If WhatsApp rejects it within a few seconds (not joined the sandbox, outside the 24-hour window) you get that error instead. Never resend after TWILIO_TIMEOUT without checking get_message_status first. Messages to household members are logged as notifications automatically (no need to call notification_log).`,
     z.object({
       to: zPhone,
       body: z.string().max(MAX_BODY).optional(),
@@ -70,11 +70,27 @@ export function registerWhatsAppTools(server: McpServer) {
           throw err;
         }
       }
+
+      // Log messages to household members as notifications, so notification_list stays complete without Janus
+      // calling notification_log (saves a tool call per turn). A logging failure never turns a sent message into an error.
+      let notificationId: string | null = null;
+      if (recipient.household_id) {
+        try {
+          const [n] = await sql`
+            INSERT INTO notifications (household_id, member_id, kind, body)
+            VALUES (${recipient.household_id}, ${recipient.member_id}, 'whatsapp', ${body?.trim() ? body : `[media] ${media_url}`})
+            RETURNING id`;
+          notificationId = n.id as string;
+        } catch (err) {
+          console.error("[send_whatsapp] could not log notification", err);
+        }
+      }
       return {
         message_sid: msg.sid,
         status,
         to: recipient.phone,
-        recipient: { name: recipient.name, type: recipient.type },
+        recipient: { name: recipient.name, type: recipient.type, household_id: recipient.household_id },
+        notification_id: notificationId,
         sent_at: new Date().toISOString(),
         partner: "Twilio (real)",
       };

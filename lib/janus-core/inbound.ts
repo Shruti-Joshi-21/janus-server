@@ -5,7 +5,7 @@ import { z } from "zod";
 import { sql } from "@/lib/db";
 import { addTool, ToolError } from "@/lib/mcp";
 
-const CLAIM_TIMEOUT_MIN = 5; // a run that crashed mid-way releases its messages after this
+const CLAIM_TIMEOUT_MIN = 2; // a run that died mid-way releases its messages after this (short, so demos recover fast)
 
 // Who sent each message: member (with household), technician, or unknown.
 async function partiesFor(phones: string[]) {

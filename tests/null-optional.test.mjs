@@ -28,8 +28,9 @@ check("send_whatsapp to Priya with media_url: null gets past validation to the s
 // Other tools, other kinds of fields
 r = await call("ledger_get_history", { household_id: "hh_priya", appliance_type: null, technician_id: null });
 check("janus_core: optional filters null -> ok, all of Priya's payments", r.ok && r.payments.length >= 2, r);
-r = await call("inbound_pending", { limit: null });
-check("field with a default: limit null -> default used", r.ok && typeof r.count === "number", r);
+// (notification_list, not inbound_pending: a test must never claim real waiting WhatsApp messages)
+r = await call("notification_list", { household_id: "hh_priya", limit: null });
+check("field with a default: limit null -> default used", r.ok && Array.isArray(r.notifications), r);
 r = await call("get_party_by_phone", { phone: null });
 check("required field null still -> INVALID_INPUT", r.error_code === "INVALID_INPUT", r);
 r = await call("geocode_address", { address: "flat 4b sai heights baner", req_id: null });
@@ -41,9 +42,21 @@ check("custom: radius_m null -> default 3 km", r.ok && r.radius_m === 3000 && r.
 r = await call("create_ot_subscription", { merchant_subscription_reference: `null-test-${Date.now()}`, customer_id: "cust-v1-250901101500-aa-PRIYA1", plan_details: { amount: 50000, validity_days: 7, description: null }, callback_url: null, merchant_metadata: null });
 check("Pine Labs: nested plan_details.description null and top-level optionals null -> created", r.status === "CREATED" && r.plan_details.description === null, r);
 
-// The exact shape Janus sent live: job_update with the changes flat instead of inside "fields"
-const job = await call("job_create", { household_id: "hh_priya", appliance_id: "app_priya_ac", issue: null, service_type: null });
+// The exact shape Janus sent live: job_update with the changes flat instead of inside "fields".
+// Uses Priya's FRIDGE (not the AC used in demos) and cancels its jobs at the end, so the shared database stays clean.
+const created = [];
+const job = await call("job_create", { household_id: "hh_priya", appliance_id: "app_priya_fridge", issue: null, service_type: null });
+created.push(job.job.id);
 r = await call("job_update", { job_id: job.job.id, state: "contacting", technician_id: "tech_ramesh" });
 check("job_update flat {job_id, state, technician_id} -> ok, stamps contacted_at", r.ok && r.job.state === "contacting" && r.job.technician_id === "tech_ramesh" && r.job.contacted_at, r);
+
+// Same complaint twice: the second job_create warns about the open job
+const dup = await call("job_create", { household_id: "hh_priya", appliance_id: "app_priya_fridge", issue: "same problem again" });
+created.push(dup.job.id);
+check("second job for the same appliance -> warning names the open job", dup.ok && dup.warnings.some((w) => w.includes(job.job.id) && w.includes("already has an open job")), dup.warnings);
+
+for (const id of created) await call("job_update", { job_id: id, fields: { state: "cancelled" } });
+r = await call("jobs_open_for_party", { phone: "+918530921384" });
+check("test jobs cleaned up (cancelled)", !r.jobs.some((j) => created.includes(j.id)), r.jobs.map((j) => j.id));
 
 console.log(`\n${passed} passed, ${failed} failed`);

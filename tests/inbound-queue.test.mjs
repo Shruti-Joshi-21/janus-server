@@ -24,7 +24,8 @@ async function rpc(route, method, params) {
 }
 const tool = async (name, args) => (await rpc("/janus/mcp", "tools/call", { name, arguments: args })).structuredContent;
 
-const run = Date.now().toString(36);
+const testStart = Date.now();
+const run = testStart.toString(36);
 const ids = { a: `evt_test_${run}_a`, b: `evt_test_${run}_b`, c: `evt_test_${run}_c` };
 await sql`
   INSERT INTO inbound_events (id, from_phone, text, received_at, twilio_message_sid) VALUES
@@ -44,7 +45,7 @@ try {
   check("sender looked up: Ramesh = technician", r.messages[1].party.type === "technician" && r.messages[1].party.technician_id === "tech_ramesh", r.messages[1]);
   check("first attempt = 1, still_waiting counts the rest", r.messages[0].attempt === 1 && r.still_waiting >= 1, r);
 
-  r = await tool("inbound_pending", { limit: 2 });
+  r = await tool("inbound_pending", { limit: 1 });
   check("claimed messages aren't handed out again; next is the stranger", r.messages[0]?.event_id === ids.c && !r.messages.some((m) => m.event_id === ids.a || m.event_id === ids.b), r);
   check("stranger -> party unknown", r.messages[0]?.party.type === "unknown", r.messages[0]);
 
@@ -63,11 +64,14 @@ try {
 
   await tool("inbound_mark_done", { event_id: ids.b, outcome: "noted his slot" });
   await tool("inbound_mark_done", { event_id: ids.c, outcome: "ignored: unknown sender" });
-  await sql`UPDATE inbound_events SET claimed_at = now() - interval '10 minutes' WHERE id = ANY(${Object.values(ids)}::text[])`;
-  r = await tool("inbound_pending", { limit: 20 });
-  check("done messages never come back, even with old claims", !r.messages.some((m) => Object.values(ids).includes(m.event_id)), r.messages.map((m) => m.event_id));
+  // Checked in the database rather than with inbound_pending, so the test never claims real waiting messages.
+  const rows = await sql`SELECT id, status FROM inbound_events WHERE id = ANY(${Object.values(ids)}::text[])`;
+  check("all three test messages are done (so they can never be handed out again)", rows.length === 3 && rows.every((x) => x.status === "done"), rows);
 } finally {
   await sql`DELETE FROM inbound_events WHERE id = ANY(${Object.values(ids)}::text[])`;
+  // Safety for the shared database: give back any REAL message this test claimed by accident.
+  await sql`UPDATE inbound_events SET status = 'pending', claimed_at = NULL, claim_count = greatest(claim_count - 1, 0)
+            WHERE status = 'claimed' AND claimed_at >= ${new Date(testStart).toISOString()}::timestamptz AND id NOT LIKE 'evt_test_%'`;
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);
