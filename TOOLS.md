@@ -5,14 +5,16 @@ If a name here differs from the prompt, the prompt is wrong.
 
 ## Status
 
-| Connector on AgenticOrg | What | Status |
+All five connectors are **live and tested** (204 checks on the live server, 3 Oct 2026). Base URL `https://janus-server.vercel.app`.
+
+| Connector on AgenticOrg (register as) | What | Tools |
 | --- | --- | --- |
-| `mcp_janus_core_pict` | Janus's database, people, jobs, payments, follow-up checks, price fairness, failure switches, demo reset | **Live, 35 tools** (re-register the connector to see the 4 scenario/reset tools) |
-| Twilio inbound webhook `/api/twilio/inbound` | Incoming WhatsApp → JSON `{channel, from_phone, text, media_url, media_type, latitude, longitude, received_at, twilio_message_sid}` → Janus, either by AgenticOrg `POST /api/v1/workflows/{id}/run` (body `{payload: event}`, needs an admin API key) or by email to the Janus Gmail (subject `[janus-inbound] WhatsApp from +91…`, body = the JSON) | **Live** via Gmail: every message arrives at janus.pict.demo@gmail.com |
-| `mcp_delhivery_janus_pict` | Delhivery Maps mock: validate/verify/geocode/reverse-geocode addresses, distance matrix, autosuggest. Returns Delhivery's exact response bodies (not our `{ok}` shape); see MOCKS.md | **Built (M7), 6 tools**; register as `delhivery_janus_pict` |
-| `mcp_pinelabs_janus_pict` | Pine Labs mock: One-Time Mandate, UPI AutoPay subscriptions, Payouts. Returns Pine Labs' exact bodies; **amounts in paise** | **Built (M8), 13 tools**; register as `pinelabs_janus_pict` |
-| `mcp_janus_custom_pict` | 3 custom capabilities: `proof_of_presence` + `technician_discovery` (partner Delhivery), `technician_identity_check` (partner Pine Labs). Our `{ok}` format with a `partner` field | **Built (M9), 3 tools**; register as `janus_custom_pict` |
-| `mcp_gnani_janus_pict` | Real Gnani speech-to-text (WhatsApp voice notes) and text-to-speech (voice replies) | **Built (M6), 2 tools**; register as `gnani_janus_pict` |
+| `mcp_janus_core_pict` (`janus_core_pict`) | Janus's database: people, appliances, technicians, jobs, payments, ratings, complaints, follow-up checks, price fairness, failure switches, demo reset | 35 |
+| `mcp_gnani_janus_pict` (`gnani_janus_pict`) | **Real** Gnani speech-to-text (WhatsApp voice notes) and text-to-speech (voice replies) | 2 |
+| `mcp_delhivery_janus_pict` (`delhivery_janus_pict`) | Delhivery Maps **mock**: validate / verify / geocode / reverse-geocode addresses, distance matrix, autosuggest. Delhivery's exact response bodies (not our `{ok}` shape) | 6 |
+| `mcp_pinelabs_janus_pict` (`pinelabs_janus_pict`) | Pine Labs **mock**: One-Time Mandate, UPI AutoPay subscriptions, Payouts. Pine Labs' exact bodies; **amounts in paise** | 13 |
+| `mcp_janus_custom_pict` (`janus_custom_pict`) | Custom capabilities: `proof_of_presence` and `technician_discovery` (partner Delhivery), `technician_identity_check` (partner Pine Labs). Our `{ok}` format plus a `partner` field | 3 |
+| Twilio webhook `/api/twilio/inbound` | Incoming WhatsApp → JSON `{channel, from_phone, text, media_url, media_type, latitude, longitude, received_at, twilio_message_sid}` → emailed to **janus.pict.demo@gmail.com** (subject `[janus-inbound] WhatsApp from +91…`, body = the JSON) | — |
 
 When new tools are added to a connector, AgenticOrg only sees them after the connector is archived and registered again (same name).
 

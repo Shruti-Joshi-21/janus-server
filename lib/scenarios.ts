@@ -2,7 +2,7 @@ import { sql } from "./db";
 
 // Every failure the team can switch on, and which mock obeys it. A mock calls takeScenario("<key>")
 // before answering; if a switch is set it returns that failure instead of the normal answer.
-// Keys for mocks not built yet (M6–M9) are listed so the team can plan evals; names may still change.
+// TOOLS.md lists every key, value and the tool it affects.
 export const SCENARIO_CATALOG: Record<string, { values: string[]; description: string }> = {
   "delhivery.next_validate": { values: ["incomplete", "not_found", "timeout", "malformed"], description: "validate_address / verify_address" },
   "delhivery.next_geocode": { values: ["not_found", "timeout", "malformed"], description: "geocode_address" },

@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "reset": "tsx --env-file=.env.local scripts/reset.ts",
     "docs:tools": "tsx --env-file=.env.local scripts/tools-doc.ts",
-    "calls": "tsx --env-file=.env.local scripts/calls.ts"
+    "calls": "tsx --env-file=.env.local scripts/calls.ts",
+    "test": "node tests/run-all.mjs"
   },
   "engines": {
     "node": ">=20"
