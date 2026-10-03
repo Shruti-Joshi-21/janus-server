@@ -46,6 +46,45 @@ function listedOnly(schema: z.ZodObject) {
   };
 }
 
+// AgenticOrg sends `null` for optional fields the agent didn't fill (e.g. media_url: null). Treat such a null
+// as "not given": drop the key before validating. Fields that deliberately accept null keep it (e.g.
+// job_update technician_id: null = unassign), and required fields stay required. Works inside nested objects
+// (e.g. plan_details) and arrays of objects (e.g. payments[]).
+type AnySchema = z.ZodType & { _zod: { def: { innerType?: AnySchema; element?: AnySchema } } };
+
+function unwrapTo<T>(schema: AnySchema, kind: new (...args: never[]) => T): T | null {
+  let current: AnySchema | undefined = schema;
+  for (let i = 0; i < 6 && current; i++) {
+    if (current instanceof kind) return current as T;
+    current = current._zod.def.innerType;
+  }
+  return null;
+}
+
+const isPlainObject = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === "object" && !Array.isArray(v);
+
+export function dropNullOptionals(schema: z.ZodObject, value: unknown): unknown {
+  if (!isPlainObject(value)) return value;
+  const out: Record<string, unknown> = { ...value };
+  for (const [key, v] of Object.entries(value)) {
+    const field = schema.shape[key] as AnySchema | undefined;
+    if (!field) continue;
+    if (v === null) {
+      if (!field.safeParse(null).success && field.safeParse(undefined).success) delete out[key];
+      continue;
+    }
+    const nested = unwrapTo(field, z.ZodObject);
+    if (nested && isPlainObject(v)) {
+      out[key] = dropNullOptionals(nested, v);
+      continue;
+    }
+    const array = unwrapTo(field, z.ZodArray);
+    const element = array ? unwrapTo((array as unknown as AnySchema)._zod.def.element as AnySchema, z.ZodObject) : null;
+    if (element && Array.isArray(v)) out[key] = v.map((item) => dropNullOptionals(element, item));
+  }
+  return out;
+}
+
 function describeIssues(error: z.ZodError): string {
   return error.issues.map((i) => `${i.path.join(".") || "input"}: ${i.message}`).join("; ");
 }
@@ -69,7 +108,7 @@ export function addMockTool<S extends z.ZodObject>(
   const callback = async (rawArgs: unknown) => {
     let reply: MockReply;
     try {
-      const parsed = inputSchema.safeParse(rawArgs ?? {});
+      const parsed = inputSchema.safeParse(dropNullOptionals(inputSchema, rawArgs ?? {}));
       reply = parsed.success ? await handler(parsed.data) : onInvalid(parsed.error.issues);
     } catch (err) {
       console.error(`[mock ${name}]`, err);
@@ -99,7 +138,7 @@ export function addTool<S extends z.ZodObject>(
   const callback = async (rawArgs: unknown) => {
     let body: Body;
     try {
-      const parsed = inputSchema.safeParse(rawArgs ?? {});
+      const parsed = inputSchema.safeParse(dropNullOptionals(inputSchema, rawArgs ?? {}));
       if (!parsed.success) throw new ToolError("INVALID_INPUT", `Invalid input for ${name}: ${describeIssues(parsed.error)}`);
       body = { ok: true, ...(await handler(parsed.data)) };
     } catch (err) {

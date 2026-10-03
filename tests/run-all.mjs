@@ -16,6 +16,8 @@ const suites = [
   ["Pine Labs mock", "node --env-file=.env.local tests/pinelabs.test.mjs", false],
   ["WhatsApp helpers (unit)", "npx tsx tests/whatsapp-unit.test.mts", false],
   ["WhatsApp connector", "node --env-file=.env.local tests/whatsapp.test.mjs", false],
+  ["null optional fields (unit)", "npx tsx tests/null-optional-unit.test.mts", false],
+  ["null optional fields (tools)", "node --env-file=.env.local tests/null-optional.test.mjs", false],
   ["inbox queue (Option C)", "node --env-file=.env.local tests/inbound-queue.test.mjs", false],
   ["combined /janus/mcp", "node --env-file=.env.local tests/janus-combined.test.mjs", false],
   ["scenario switches + reset", "npx tsx --env-file=.env.local tests/scenarios-reset.test.mts", false],

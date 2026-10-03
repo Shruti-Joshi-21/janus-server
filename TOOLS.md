@@ -27,6 +27,7 @@ When new tools are added to a connector, AgenticOrg only sees them after the con
 
 - **Every answer is JSON.** Success: `{"ok": true, ...}`. Failure: `{"ok": false, "error_code": "JOB_NOT_FOUND", "message": "No job with id \"job_x\"."}` — some failures add extra fields (listed under Error codes). Janus should read `ok` first, never assume success.
 - **Bad input** (missing field, wrong type, unknown key, bad date) → `error_code: "INVALID_INPUT"` with a message naming the field.
+- **`null` for an optional field = not given** (AgenticOrg sends e.g. `media_url: null`); this applies to every tool, including nested fields. Fields documented as nullable keep `null` with its meaning (e.g. `job_update` `fields.technician_id: null` unassigns). Required fields can't be `null`.
 - **Exception: partner mocks (Delhivery and Pine Labs)** answer with the partner's **real** response body, not `{ok: …}`. Success = the documented JSON. Failure = the tool result is flagged as an error and its text starts with `HTTP <status>:` followed by the partner's error body (e.g. `HTTP 504: {"detail": "Upstream service 'matrix' timed out"}`). A "malformed" reply is broken JSON that can't be parsed; Janus should treat it like an error and retry or fall back.
 - **Phone numbers**: E.164 (`+918530921384`). Tools also accept `9000000001`, `+91 90000 00001`, `whatsapp:+918530921384` and always return the normalised form.
 - **Money**: whole rupees, integers (`650`, not `"₹650"` or `650.00`).
