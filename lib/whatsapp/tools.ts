@@ -56,10 +56,11 @@ export function registerWhatsAppTools(server: McpServer) {
       const msg = await twilioRequest("Messages.json", form);
       let status = msg.status as string;
 
-      // WhatsApp often rejects within a second or two (63015 / 63016). Look once or twice so Janus isn't told
-      // "queued" for a message that has already failed. This only reads the status; it never resends.
-      for (let i = 0; i < 2 && !FAILED.includes(status) && status !== "delivered" && Date.now() - started < 5000; i++) {
-        await sleep(1200);
+      // WhatsApp often rejects within a second (63015 / 63016). Look once so Janus isn't told "queued" for a
+      // message that has already failed. Kept to one quick look because AgenticOrg's chat turn has a ~30 s budget
+      // for all tool calls. This only reads the status; it never resends. Later failures: get_message_status.
+      for (let i = 0; i < 1 && !FAILED.includes(status) && status !== "delivered" && Date.now() - started < 3000; i++) {
+        await sleep(1000);
         const check = await twilioRequest(`Messages/${msg.sid}.json`).catch(() => null);
         if (!check) break;
         status = check.status as string;

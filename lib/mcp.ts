@@ -85,6 +85,25 @@ export function dropNullOptionals(schema: z.ZodObject, value: unknown): unknown 
   return out;
 }
 
+// The *_update tools take { <id>, fields: {...} }. Agents often send the changes flat instead
+// ({ job_id, state }), so move any top-level key that belongs in `fields` into it.
+export function liftFlatFields(schema: z.ZodObject, value: unknown): unknown {
+  if (!isPlainObject(value)) return value;
+  const fieldsSchema = schema.shape.fields ? unwrapTo(schema.shape.fields as AnySchema, z.ZodObject) : null;
+  if (!fieldsSchema) return value;
+  const out: Record<string, unknown> = { ...value };
+  const fields: Record<string, unknown> = isPlainObject(out.fields) ? { ...out.fields } : {};
+  let moved = false;
+  for (const key of Object.keys(value)) {
+    if (key in schema.shape || !(key in fieldsSchema.shape)) continue;
+    if (!(key in fields)) fields[key] = value[key];
+    delete out[key];
+    moved = true;
+  }
+  if (moved || isPlainObject(out.fields)) out.fields = fields;
+  return out;
+}
+
 function describeIssues(error: z.ZodError): string {
   return error.issues.map((i) => `${i.path.join(".") || "input"}: ${i.message}`).join("; ");
 }
@@ -108,7 +127,7 @@ export function addMockTool<S extends z.ZodObject>(
   const callback = async (rawArgs: unknown) => {
     let reply: MockReply;
     try {
-      const parsed = inputSchema.safeParse(dropNullOptionals(inputSchema, rawArgs ?? {}));
+      const parsed = inputSchema.safeParse(dropNullOptionals(inputSchema, liftFlatFields(inputSchema, rawArgs ?? {})));
       reply = parsed.success ? await handler(parsed.data) : onInvalid(parsed.error.issues);
     } catch (err) {
       console.error(`[mock ${name}]`, err);
@@ -138,7 +157,7 @@ export function addTool<S extends z.ZodObject>(
   const callback = async (rawArgs: unknown) => {
     let body: Body;
     try {
-      const parsed = inputSchema.safeParse(dropNullOptionals(inputSchema, rawArgs ?? {}));
+      const parsed = inputSchema.safeParse(dropNullOptionals(inputSchema, liftFlatFields(inputSchema, rawArgs ?? {})));
       if (!parsed.success) throw new ToolError("INVALID_INPUT", `Invalid input for ${name}: ${describeIssues(parsed.error)}`);
       body = { ok: true, ...(await handler(parsed.data)) };
     } catch (err) {

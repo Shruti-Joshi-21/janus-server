@@ -41,4 +41,9 @@ check("custom: radius_m null -> default 3 km", r.ok && r.radius_m === 3000 && r.
 r = await call("create_ot_subscription", { merchant_subscription_reference: `null-test-${Date.now()}`, customer_id: "cust-v1-250901101500-aa-PRIYA1", plan_details: { amount: 50000, validity_days: 7, description: null }, callback_url: null, merchant_metadata: null });
 check("Pine Labs: nested plan_details.description null and top-level optionals null -> created", r.status === "CREATED" && r.plan_details.description === null, r);
 
+// The exact shape Janus sent live: job_update with the changes flat instead of inside "fields"
+const job = await call("job_create", { household_id: "hh_priya", appliance_id: "app_priya_ac", issue: null, service_type: null });
+r = await call("job_update", { job_id: job.job.id, state: "contacting", technician_id: "tech_ramesh" });
+check("job_update flat {job_id, state, technician_id} -> ok, stamps contacted_at", r.ok && r.job.state === "contacting" && r.job.technician_id === "tech_ramesh" && r.job.contacted_at, r);
+
 console.log(`\n${passed} passed, ${failed} failed`);
