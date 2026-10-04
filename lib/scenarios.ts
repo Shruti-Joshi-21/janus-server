@@ -36,5 +36,5 @@ export async function takeScenario(key: string, onlyValues?: string[]): Promise<
 }
 
 // Mock "timeout": wait a bit, then report a 504-style error. Kept well under AgenticOrg's 10 s tool timeout.
-export const TIMEOUT_DELAY_MS = 6000;
+export const TIMEOUT_DELAY_MS = 4000;
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

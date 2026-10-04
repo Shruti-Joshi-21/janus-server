@@ -6,6 +6,7 @@ import { registerDelhiveryTools } from "./delhivery/tools";
 import { registerGnaniTools } from "./gnani/tools";
 import { registerJanusCoreTools, registerPing } from "./janus-core";
 import { registerPineLabsTools } from "./pinelabs/tools";
+import { registerStepTools } from "./steps/tools";
 import { registerWhatsAppTools } from "./whatsapp/tools";
 
 export const TOOL_GROUPS: [group: string, register: (server: McpServer) => void][] = [
@@ -15,6 +16,7 @@ export const TOOL_GROUPS: [group: string, register: (server: McpServer) => void]
   ["pinelabs", registerPineLabsTools],
   ["custom", registerCustomTools],
   ["whatsapp", registerWhatsAppTools],
+  ["steps", registerStepTools], // only on /janus/mcp (the combined connector)
 ];
 
 // Registers every group on `server` and returns tool name → group. Throws if two groups use the same tool name.

@@ -16,13 +16,15 @@ type JsonSchema = {
 };
 type Tool = { name: string; description?: string; inputSchema: JsonSchema };
 
-const CONNECTORS: Record<string, { path: string; connector: string }> = {
+// onlyNew: list only the tools no earlier route has (the step tools live only on /janus/mcp).
+const CONNECTORS: Record<string, { path: string; connector: string; onlyNew?: boolean }> = {
   janus_core: { path: "/janus-core/mcp", connector: "mcp_janus_core_pict" },
   gnani_janus: { path: "/gnani/mcp", connector: "mcp_gnani_janus_pict" },
   delhivery_janus: { path: "/delhivery/mcp", connector: "mcp_delhivery_janus_pict" },
   pinelabs_janus: { path: "/pinelabs/mcp", connector: "mcp_pinelabs_janus_pict" },
   janus_custom: { path: "/custom/mcp", connector: "mcp_janus_custom_pict" },
   whatsapp_janus: { path: "/whatsapp/mcp", connector: "mcp_whatsapp_janus_pict" },
+  janus: { path: "/janus/mcp", connector: "mcp_janus_pict", onlyNew: true },
 };
 
 // What each tool returns (besides ok:true) and one example call. Keep in step with lib/janus-core/.
@@ -148,6 +150,26 @@ const NOTES: Record<string, { returns: string; example: Record<string, unknown> 
     returns: "`event_id`, `status: done`, `already_done`, `outcome`, `handled_at`. Errors: EVENT_NOT_FOUND",
     example: { event_id: "evt_…", outcome: "replied; job job_… created for the AC" },
   },
+  technician_proposed_time: {
+    returns: "`decision` (confirmed | asked_household), `job_id`, `slot` (ISO UTC), `slot_ist` (e.g. \"Tomorrow 5 PM\"), `inside_availability`, `availability` (when asked), `checks_closed`, `messages_sent[]` {to_name, body, sent, error_code?}, `steps[]` {tool, connector, ok, status, error_code}. Errors: SLOT_UNPARSEABLE, TECHNICIAN_NOT_FOUND, NO_OPEN_JOB, INVALID_INPUT",
+    example: { technician_phone: "+919823562151", slot_text: "I can come tomorrow at 5 pm", received_at: "2026-10-04T15:30:00+05:30" },
+  },
+  technician_location_update: {
+    returns: "`decision` (arrived | on_the_way | eta_unavailable), `job_id`, `distance_m` (arrived), `eta_minutes` + `distance_km` (on_the_way), `presence` (reason), `messages_sent[]`, `steps[]`. Errors: TECHNICIAN_NOT_FOUND, NO_OPEN_JOB",
+    example: { technician_phone: "+919823562151", latitude: 18.5603, longitude: 73.7812, received_at: "2026-10-05T17:02:00+05:30" },
+  },
+  bill_reported: {
+    returns: "`decision` (fair | slightly_high | high | low | insufficient_data), `job_id`, `amount`, `expected_min`, `expected_max`, `difference_pct`, `alternative_service_types[]`, `messages_sent[]`, `steps[]`. Errors: HOUSEHOLD_NOT_FOUND, NO_OPEN_JOB, MISSING_APPLIANCE",
+    example: { household_phone: "+918530921384", amount: 900, service_type: "gas_top_up" },
+  },
+  pay_through_janus: {
+    returns: "`outcome` (paid | on_hold | declined | failed | unknown), `job_id`, `amount`, `references` {mandate, mandate_payment, debit, payout}, `payout_status`, `payment_reference`, `reason` (failed/unknown), `messages_sent[]`, `steps[]`. Errors: SPEND_LIMIT_EXCEEDED (decider already asked; carries messages_sent), ALREADY_PAID, NOTHING_TO_PAY, NO_TECHNICIAN, NO_TECHNICIAN_UPI, NO_PINE_LABS_CUSTOMER, HOUSEHOLD_NOT_FOUND",
+    example: { household_phone: "+918530921384" },
+  },
+  assign_alternate_technician: {
+    returns: "`decision` (contacted | not_verified), `job_id`, `technician` {id, name} (contacted), `identity_status` (not_verified), `checks_closed`, `messages_sent[]`, `steps[]`. Errors: HOUSEHOLD_NOT_FOUND, NO_OPEN_JOB, TECHNICIAN_NOT_FOUND",
+    example: { household_phone: "+918530921384", technician_name: "Anil" },
+  },
   checks_due: { returns: "`now`, `count`, `checks[]` (with job_state, technician_id)", example: {} },
   check_done: { returns: "`check`", example: { check_id: "chk_…", outcome: "Ramesh replied, slot 5 PM" } },
 };
@@ -207,9 +229,16 @@ async function main() {
   if (!key) throw new Error("MCP_API_KEY is not set (.env.local)");
 
   const parts: string[] = [];
-  for (const [server, { path, connector }] of Object.entries(CONNECTORS)) {
-    const tools = await listTools(base, path, key);
-    parts.push(`## Connector \`${connector}\` — ${tools.length} tools\n\nURL: \`https://janus-server.vercel.app${path}\` (server name \`${server}\`)\n`);
+  const seen = new Set<string>();
+  for (const [server, { path, connector, onlyNew }] of Object.entries(CONNECTORS)) {
+    const all = await listTools(base, path, key);
+    const tools = onlyNew ? all.filter((t) => !seen.has(t.name)) : all;
+    for (const t of all) seen.add(t.name);
+    parts.push(
+      onlyNew
+        ? `## Step tools — only on \`${connector}\` (${tools.length} tools; the combined connector has ${all.length})\n\nURL: \`https://janus-server.vercel.app${path}\` (server name \`${server}\`). See "Step tools" above.\n`
+        : `## Connector \`${connector}\` — ${tools.length} tools\n\nURL: \`https://janus-server.vercel.app${path}\` (server name \`${server}\`)\n`,
+    );
     for (const tool of tools) {
       const note = NOTES[tool.name];
       const inputRows = rows(tool.inputSchema);

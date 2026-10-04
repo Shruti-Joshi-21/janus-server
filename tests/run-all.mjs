@@ -19,6 +19,8 @@ const suites = [
   ["null optional fields (unit)", "npx tsx tests/null-optional-unit.test.mts", false],
   ["null optional fields (tools)", "node --env-file=.env.local tests/null-optional.test.mjs", false],
   ["inbox queue (Option C)", "node --env-file=.env.local tests/inbound-queue.test.mjs", false],
+  ["step tools (unit)", "npx tsx --env-file=.env.local tests/steps-unit.test.mts", false],
+  ["step tools (scratch household)", "node --env-file=.env.local tests/steps.test.mjs", false],
   ["combined /janus/mcp", "node --env-file=.env.local tests/janus-combined.test.mjs", false],
   ["scenario switches + reset", "npx tsx --env-file=.env.local tests/scenarios-reset.test.mts", false],
 ];

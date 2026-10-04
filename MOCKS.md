@@ -7,7 +7,7 @@ Common to all mocks:
 - Success → the partner's documented response body, unchanged (no extra fields added).
 - Error → `isError: true`, and the text is `HTTP <status>: <partner's documented error body>` so the status is visible without changing the body.
 - "Malformed" failures return deliberately truncated JSON.
-- Timeouts wait about 6 seconds, then return the partner's 504 body (AgenticOrg cuts tools off at 10 seconds).
+- Timeouts wait about 4 seconds, then return the partner's 504 body (AgenticOrg cuts tools off at 10 seconds).
 - Failure switches: see `scenario_set` in TOOLS.md.
 
 ## One combined endpoint
@@ -107,4 +107,4 @@ Rules (ours):
 - **technician_discovery**: businesses whose skills include the appliance, within `radius_m` (default 3 km, max 25 km), nearest first; ETA assumes 25 km/h motorcycle on roads (straight-line × 1.3). When nothing is in range it reports the nearest one outside it.
 - **technician_identity_check**: `verified` if every word of the given name is in the KYC legal name (so "Ramesh" matches "Ramesh Patil") and the UPI ID matches when given; `mismatch` otherwise, showing only a **masked** registered name (e.g. `S**** J*****`) so KYC data isn't exposed; `not_found` if the phone isn't a verified Pine Labs merchant. This also covers the "beneficiary name ↔ UPI ID" check that Pine Labs' real API doesn't offer.
 
-Failure switches: `custom.next_presence` (not_present, no_location, stale_location, timeout), `custom.next_discovery` (none_found, timeout), `custom.next_identity` (verified, not_found, mismatch, timeout). Simulated answers carry `simulated: true`. Timeouts return `{ok:false, error_code:"TIMEOUT", partner, http_status: 504}` after about 6 seconds.
+Failure switches: `custom.next_presence` (not_present, no_location, stale_location, timeout), `custom.next_discovery` (none_found, timeout), `custom.next_identity` (verified, not_found, mismatch, timeout). Simulated answers carry `simulated: true`. Timeouts return `{ok:false, error_code:"TIMEOUT", partner, http_status: 504}` after about 4 seconds.

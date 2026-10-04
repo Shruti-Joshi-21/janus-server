@@ -2,7 +2,7 @@
 
 Everything **Janus** calls. Janus is the AI agent (built on Pine Labs' AgenticOrg platform) that coordinates household appliance repairs in India for Team The Phantom Elite, The Ken's Case Build Competition 2026.
 
-This is one Next.js app on Vercel that exposes **one combined MCP server** (`/janus/mcp`, all 64 tools, the only one registered on AgenticOrg) plus the six per-group MCP routes it is built from, one **WhatsApp webhook**, and a **call log**.
+This is one Next.js app on Vercel that exposes **one combined MCP server** (`/janus/mcp`, all 69 tools including 5 step tools, the only one registered on AgenticOrg) plus the six per-group MCP routes it is built from, one **WhatsApp webhook**, and a **call log**.
 
 - **[TOOLS.md](TOOLS.md)**: every tool, its inputs, outputs, example call and error codes. Janus's prompt must use these exact names.
 - **[MOCKS.md](MOCKS.md)**: for each mocked partner API, the documentation it was copied from and what is assumed.
@@ -11,7 +11,7 @@ This is one Next.js app on Vercel that exposes **one combined MCP server** (`/ja
 
 | Route | Register on AgenticOrg as | Shows up as | Tools | What it is |
 | --- | --- | --- | --- | --- |
-| **`/janus/mcp`** | **`janus_pict`** (the only one to register) | `mcp_janus_pict` | **64** | Every tool below on one connector (AgenticOrg accepts MCP tools from only one connector per agent). Tool names `mcp_janus_pict__<tool>` |
+| **`/janus/mcp`** | **`janus_pict`** (the only one to register) | `mcp_janus_pict` | **69** | Every tool below + the 5 step tools (`technician_proposed_time`, `technician_location_update`, `bill_reported`, `pay_through_janus`, `assign_alternate_technician`) on one connector (AgenticOrg accepts MCP tools from only one connector per agent). Tool names `mcp_janus_pict__<tool>` |
 | `/janus-core/mcp` | `janus_core_pict` | `mcp_janus_core_pict` | 37 | Janus's own database: people, appliances, technicians, jobs, payments, ratings, complaints, follow-up checks, price fairness, failure switches, demo reset, WhatsApp inbox (`inbound_pending`, `inbound_mark_done`) |
 | `/gnani/mcp` | `gnani_janus_pict` | `mcp_gnani_janus_pict` | 2 | **Real** Gnani speech-to-text (WhatsApp voice notes) and text-to-speech (voice replies) |
 | `/delhivery/mcp` | `delhivery_janus_pict` | `mcp_delhivery_janus_pict` | 6 | **Mock** of Delhivery Maps: validate / verify / geocode / reverse-geocode addresses, distance matrix, autosuggest |
@@ -78,6 +78,7 @@ All are in Vercel → Settings → Environment Variables (and `.env.local` for l
 | `npm run inbox` | Janus's WhatsApp inbox (last 10 messages: status, attempt, claimed/done times, outcome) and pending checks. Read-only |
 | `npm run calls` | Last 20 tool calls to any connector, in IST. `npm run calls -- 50` for more; `npm run calls -- 20 all` to include registrations and handshakes |
 | `npm test` | Every test suite against the local server (**resets the database: not while anyone is testing Janus**); `npm test -- https://janus-server.vercel.app` for the live server. **Resets the database** before, between and after suites |
+| `npm run test:steps` | The 5 step tools on a scratch household (ids `tst_…`, phones not in the sandbox, so nobody is messaged). **No reset**: it deletes only its own rows and restores the payout balance. Safe while recording. `npm run test:steps -- https://janus-server.vercel.app` for the live server |
 | `npm run send:test -- +91… "text"` | Sends ONE real WhatsApp message through the live `send_whatsapp` tool, then checks delivery |
 | `npm run docs:tools` | Regenerates the tool reference in TOOLS.md from a running server (`npm run docs:tools -- https://janus-server.vercel.app` for live) |
 

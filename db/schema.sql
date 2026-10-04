@@ -128,6 +128,7 @@ CREATE TABLE jobs (
   issue               text,
   brand_complaint_no  text,
   confirmed_slot      timestamptz,                    -- the visit time agreed with the technician
+  quoted_amount       integer,                        -- the bill the technician asked for (bill_reported), whole rupees
   created_at          timestamptz NOT NULL DEFAULT now(),
   contacted_at        timestamptz,
   slot_confirmed_at   timestamptz,

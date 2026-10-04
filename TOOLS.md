@@ -1,11 +1,11 @@
-**yes** |**yes** |**yes** |# Janus tools — the contract between Track A (server) and Track B (Janus prompt)
+# Janus tools — the contract between Track A (server) and Track B (Janus prompt)
 
 Tool names, inputs and outputs below are generated from the live server, so they match exactly what AgenticOrg discovers.
 If a name here differs from the prompt, the prompt is wrong.
 
 ## Status
 
-> **Register only ONE connector on AgenticOrg: `janus_pict` → `https://janus-server.vercel.app/janus/mcp` (all 64 tools).** On the platform every tool is then named `mcp_janus_pict__<tool>`, e.g. `mcp_janus_pict__get_party_by_phone`, `mcp_janus_pict__validate_address`, `mcp_janus_pict__send_whatsapp`. Reason: AgenticOrg validates an agent's MCP tools against a single connector's catalogue, so two or more MCP connectors can't be attached together. The per-group routes below still exist for testing; the tables further down are grouped by them, but the tool names, inputs and answers are identical on `/janus/mcp`. Don't attach `ping`, `scenario_set`, `scenario_list`, `scenario_clear` or `reset_demo_data` to Janus (testers call them directly).
+> **Register only ONE connector on AgenticOrg: `janus_pict` → `https://janus-server.vercel.app/janus/mcp` (all 69 tools: the 64 below + 5 step tools).** On the platform every tool is then named `mcp_janus_pict__<tool>`, e.g. `mcp_janus_pict__get_party_by_phone`, `mcp_janus_pict__validate_address`, `mcp_janus_pict__send_whatsapp`. Reason: AgenticOrg validates an agent's MCP tools against a single connector's catalogue, so two or more MCP connectors can't be attached together. The per-group routes below still exist for testing; the tables further down are grouped by them, but the tool names, inputs and answers are identical on `/janus/mcp`. Don't attach `ping`, `scenario_set`, `scenario_list`, `scenario_clear` or `reset_demo_data` to Janus (testers call them directly).
 
 Per-group routes (all live and tested; 268 checks) (204 checks on the live server, 3 Oct 2026). Base URL `https://janus-server.vercel.app`.
 
@@ -22,6 +22,20 @@ Per-group routes (all live and tested; 268 checks) (204 checks on the live serve
 When new tools are added to a connector, AgenticOrg only sees them after the connector is archived and registered again (same name).
 
 **Every call is logged on the server** (time, connector, tool, inputs, result), and resets don't erase the log. To check whether Janus really called a tool during a test, tell Track A the time; they run `npm run calls` and see within seconds.
+
+## Step tools (one call = one whole step of a rule)
+
+Five tools on `/janus/mcp` that each do a complete step on the server: they call the existing tools in order, send the WhatsApps (decider + technician, in parallel), and report what happened. Janus only decides **which** step applies, then calls one tool. Each finishes in under 8 seconds.
+
+| When | Call | `decision` / `outcome` |
+| --- | --- | --- |
+| Technician proposes a time ("kal 5 baje", "tomorrow at 5 pm") | `technician_proposed_time {technician_phone, slot_text, received_at}` | `confirmed` (inside household availability) · `asked_household` (outside; decider gets "1 confirm · 2 ask him for another time"). If the decider replies 1 → call again with `household_approved: true` |
+| Technician shares his WhatsApp location | `technician_location_update {technician_phone, latitude, longitude, received_at}` | `arrived` (job → in_progress) · `on_the_way` (ETA from Delhivery) · `eta_unavailable` |
+| Bill amount is known | `bill_reported {household_phone, amount, service_type}` | the price verdict: `fair` · `slightly_high` · `high` · `low` · `insufficient_data`. Decider gets "1 pay through Janus · 2 hold and ask him why · 3 I paid him directly" |
+| Decider replies "1" to the bill | `pay_through_janus {household_phone}` (amount defaults to the bill) | `paid` · `on_hold` · `declined` · `failed` · `unknown` (call again later; it never pays twice). Error `SPEND_LIMIT_EXCEEDED` = the decider was already asked "Reply 'yes pay N'"; on that reply call again with `over_limit_confirmed: true` |
+| Technician silent, household picks someone else | `assign_alternate_technician {household_phone, technician_name}` | `contacted` (identity verified, job reassigned, 2-minute reply check scheduled) · `not_verified` (nobody contacted) |
+
+Every answer has `messages_sent [{to_name, body, sent}]` (what was actually sent, so **don't send these messages again**) and `steps [{tool, connector, ok}]` (every internal call, also logged in `npm run calls`). Messages go only to the household's decider on a reachable number, never to a placeholder number. Times are IST.
 
 ## Conventions (all tools)
 
@@ -79,6 +93,12 @@ If your eval cases use other words: requested → `new`, assigned → `contactin
 | `INVALID_DUE_TIME` | `check_schedule` needs exactly one of `due_at` / `due_in_minutes` | — |
 | `CHECK_NOT_PENDING` | `check_done` on a check already done/cancelled | `check` |
 | `INVALID_REFERENCE`, `DUPLICATE`, `INVALID_VALUE` | Database refused the value (e.g. unknown technician id inside `fields`) | — |
+| `SLOT_UNPARSEABLE` | `technician_proposed_time`: no day/time could be read from `slot_text`. Ask him for a day and time | — |
+| `NO_OPEN_JOB` | Step tool: the technician / household has no open job for that step | — |
+| `SPEND_LIMIT_EXCEEDED` | `pay_through_janus`: amount above the household spend limit; the decider has already been asked to confirm | `messages_sent`, `steps` |
+| `ALREADY_PAID` | `pay_through_janus`: this job was already paid through Janus. Nothing was paid again | `job_id` |
+| `NOTHING_TO_PAY` | `pay_through_janus`: no job awaiting payment (call `bill_reported` first) or no amount | `job_id` |
+| `NO_TECHNICIAN`, `NO_TECHNICIAN_UPI`, `MISSING_APPLIANCE`, `NO_PINE_LABS_CUSTOMER` | Step tool is missing data it needs on the job | — |
 | `INTERNAL_ERROR` | Bug on our side — tell Track A | — |
 
 ## How `price_fairness_check` decides
@@ -249,7 +269,7 @@ Neighbours (3 other flats, never named to Priya) add AC gas top-up payments of �
 - `scenario_set {key: "pinelabs.next_payout", value: "timeout", uses: 1}` → the next payout times out. `uses: 2` → the next two calls; `uses: 0` → every call until cleared.
 - `scenario_list` shows what's switched on (`uses_left`, null = until cleared) and the full catalogue. `scenario_clear {key}` turns one off; `scenario_clear {}` turns all off. A reset also clears them.
 - Unknown keys or values are rejected (`UNKNOWN_SCENARIO`, `INVALID_SCENARIO_VALUE`) with the list of valid ones, so typos can't silently do nothing.
-- A `timeout` waits about 6 seconds, then returns a 504-style error (under AgenticOrg's 10-second tool limit).
+- A `timeout` waits about 4 seconds, then returns a 504-style error (under AgenticOrg's 10-second tool limit).
 
 | Key | Values | Affects | Mock built? |
 | --- | --- | --- | --- |
@@ -1487,6 +1507,98 @@ Has a WhatsApp message been delivered? status: queued, sent, delivered, read, fa
 Example:
 ```json
 {"tool":"get_message_status","arguments":{"message_sid":"SM…"}}
+```
+
+## Step tools — only on `mcp_janus_pict` (5 tools; the combined connector has 69)
+
+URL: `https://janus-server.vercel.app/janus/mcp` (server name `janus`). See "Step tools" above.
+
+### `technician_proposed_time`
+
+STEP: the technician proposed a visit time (e.g. 'I can come tomorrow at 5 pm', 'kal 5 baje'). Finds his newest open job and checks the household's availability. Inside it → confirms the slot (job slot_confirmed), closes the reply checks, WhatsApps him and the decider. Outside it → asks the decider (1 confirm · 2 another time) and tells him you're checking. If the decider replied 1 (confirm), call again with household_approved:true. Give slot_text (his words) or slot (ISO +05:30).
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `technician_phone` | string | yes | Phone number, E.164 preferred (+919876543210). Also accepts spaces/dashes, a 10-digit Indian number or a 'whatsapp:' prefix. |
+| `slot_text` | string | no |  |
+| `slot` | datetime (ISO, with offset) | no |  |
+| `received_at` | datetime (ISO, with offset) | no | When he sent it (the message's received_at); 'tomorrow' is relative to this |
+| `household_approved` | boolean | no | true after the decider confirmed an out-of-hours slot; default `false` |
+
+**Returns** (besides `ok: true`): `decision` (confirmed | asked_household), `job_id`, `slot` (ISO UTC), `slot_ist` (e.g. "Tomorrow 5 PM"), `inside_availability`, `availability` (when asked), `checks_closed`, `messages_sent[]` {to_name, body, sent, error_code?}, `steps[]` {tool, connector, ok, status, error_code}. Errors: SLOT_UNPARSEABLE, TECHNICIAN_NOT_FOUND, NO_OPEN_JOB, INVALID_INPUT
+
+Example:
+```json
+{"tool":"technician_proposed_time","arguments":{"technician_phone":"+919823562151","slot_text":"I can come tomorrow at 5 pm","received_at":"2026-10-04T15:30:00+05:30"}}
+```
+
+### `technician_location_update`
+
+STEP: the technician shared his WhatsApp location. Runs proof_of_presence for his newest open job. At the flat → job in_progress, tells the decider he has arrived and thanks him. Not there yet → Delhivery distance matrix (motorcycle) and tells the decider the ETA. If Delhivery fails twice → tells the decider the ETA isn't available.
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `technician_phone` | string | yes | Phone number, E.164 preferred (+919876543210). Also accepts spaces/dashes, a 10-digit Indian number or a 'whatsapp:' prefix. |
+| `latitude` | number | yes |  |
+| `longitude` | number | yes |  |
+| `received_at` | datetime (ISO, with offset) | yes | The message's received_at |
+
+**Returns** (besides `ok: true`): `decision` (arrived | on_the_way | eta_unavailable), `job_id`, `distance_m` (arrived), `eta_minutes` + `distance_km` (on_the_way), `presence` (reason), `messages_sent[]`, `steps[]`. Errors: TECHNICIAN_NOT_FOUND, NO_OPEN_JOB
+
+Example:
+```json
+{"tool":"technician_location_update","arguments":{"technician_phone":"+919823562151","latitude":18.5603,"longitude":73.7812,"received_at":"2026-10-05T17:02:00+05:30"}}
+```
+
+### `bill_reported`
+
+STEP: the bill is known (amount in whole rupees + service_type, e.g. gas_top_up). Saves it on the household's newest open job (state awaiting_payment), runs price_fairness_check and sends the decider the verdict with real numbers and the options 1 pay through Janus · 2 hold and ask why · 3 I paid him directly. decision = the verdict.
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `household_phone` | string | yes | Phone number, E.164 preferred (+919876543210). Also accepts spaces/dashes, a 10-digit Indian number or a 'whatsapp:' prefix. |
+| `amount` | integer | yes |  |
+| `service_type` | string | yes |  |
+| `technician_phone` | string | no | Phone number, E.164 preferred (+919876543210). Also accepts spaces/dashes, a 10-digit Indian number or a 'whatsapp:' prefix. |
+
+**Returns** (besides `ok: true`): `decision` (fair | slightly_high | high | low | insufficient_data), `job_id`, `amount`, `expected_min`, `expected_max`, `difference_pct`, `alternative_service_types[]`, `messages_sent[]`, `steps[]`. Errors: HOUSEHOLD_NOT_FOUND, NO_OPEN_JOB, MISSING_APPLIANCE
+
+Example:
+```json
+{"tool":"bill_reported","arguments":{"household_phone":"+918530921384","amount":900,"service_type":"gas_top_up"}}
+```
+
+### `pay_through_janus`
+
+STEP: the decider chose '1 pay through Janus'. Pays the newest awaiting_payment job via Pine Labs: one-time mandate → mandate approval → debit → payout to the technician's UPI → payout status. Never pays twice (references are reused; after a timeout it checks the payout instead of creating another). outcome: paid (ledger + job paid + rating question), on_hold (insufficient balance, nothing paid), declined, failed, or unknown (still checking). Amount defaults to the quoted bill; above the spend limit needs over_limit_confirmed:true.
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `household_phone` | string | yes | Phone number, E.164 preferred (+919876543210). Also accepts spaces/dashes, a 10-digit Indian number or a 'whatsapp:' prefix. |
+| `amount` | integer | no |  |
+| `over_limit_confirmed` | boolean | no | true only after the decider replied 'yes pay <amount>' to the limit question; default `false` |
+
+**Returns** (besides `ok: true`): `outcome` (paid | on_hold | declined | failed | unknown), `job_id`, `amount`, `references` {mandate, mandate_payment, debit, payout}, `payout_status`, `payment_reference`, `reason` (failed/unknown), `messages_sent[]`, `steps[]`. Errors: SPEND_LIMIT_EXCEEDED (decider already asked; carries messages_sent), ALREADY_PAID, NOTHING_TO_PAY, NO_TECHNICIAN, NO_TECHNICIAN_UPI, NO_PINE_LABS_CUSTOMER, HOUSEHOLD_NOT_FOUND
+
+Example:
+```json
+{"tool":"pay_through_janus","arguments":{"household_phone":"+918530921384"}}
+```
+
+### `assign_alternate_technician`
+
+STEP: switch the household's newest open job to another technician (by name, e.g. 'Anil'). Looks him up (household list, then society log), verifies his identity with Pine Labs KYC, and only if verified: assigns him, closes the old reply checks, WhatsApps him the job, schedules a 2-minute reply check and tells the decider. Not verified → tells the decider and contacts nobody.
+
+| Input | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `household_phone` | string | yes | Phone number, E.164 preferred (+919876543210). Also accepts spaces/dashes, a 10-digit Indian number or a 'whatsapp:' prefix. |
+| `technician_name` | string | yes |  |
+
+**Returns** (besides `ok: true`): `decision` (contacted | not_verified), `job_id`, `technician` {id, name} (contacted), `identity_status` (not_verified), `checks_closed`, `messages_sent[]`, `steps[]`. Errors: HOUSEHOLD_NOT_FOUND, NO_OPEN_JOB, TECHNICIAN_NOT_FOUND
+
+Example:
+```json
+{"tool":"assign_alternate_technician","arguments":{"household_phone":"+918530921384","technician_name":"Anil"}}
 ```
 
 <!-- TOOLS:END -->

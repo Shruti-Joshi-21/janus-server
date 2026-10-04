@@ -52,8 +52,10 @@ for (const [group, route] of Object.entries(ROUTES)) {
     else differences.push(`${group}:${t.name}`);
   }
 }
-console.log(`      union expected ${expected}, combined ${combined.length}`);
-check(`combined = union of the 6 routes (${expected} tools)`, combined.length === expected, { expected, got: combined.length });
+const STEP_TOOLS = ["technician_proposed_time", "technician_location_update", "bill_reported", "pay_through_janus", "assign_alternate_technician"];
+const unionSize = expected;
+console.log(`      union expected ${unionSize} + ${STEP_TOOLS.length} step tools, combined ${combined.length}`);
+check(`combined = union of the 6 routes + the 5 step tools (${unionSize + STEP_TOOLS.length} tools)`, combined.length === unionSize + STEP_TOOLS.length && STEP_TOOLS.every((n) => byName.has(n)), { expected: unionSize + STEP_TOOLS.length, got: combined.length });
 check("every tool's description and input schema are byte-identical to its own route", identical === expected && differences.length === 0, differences);
 check("ping and the scenario/reset tools appear exactly once", ["ping", "scenario_set", "scenario_list", "scenario_clear", "reset_demo_data"].every((n) => combined.filter((t) => t.name === n).length === 1));
 
