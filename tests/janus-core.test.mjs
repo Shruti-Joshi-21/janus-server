@@ -38,7 +38,7 @@ check("missing required field -> INVALID_INPUT", v.error_code === "INVALID_INPUT
 
 let r = await call("get_party_by_phone", { phone: "85309 21384" });
 check("party: Priya by 10-digit phone", r.type === "member" && r.household_id === "hh_priya" && r.member.name === "Priya", r);
-r = await call("get_party_by_phone", { phone: "whatsapp:+918369502720" });
+r = await call("get_party_by_phone", { phone: "whatsapp:+919823562151" });
 check("party: Ramesh is technician", r.type === "technician" && r.technician.name === "Ramesh Patil", r);
 r = await call("get_party_by_phone", { phone: "+919999999999" });
 check("party: unknown", r.ok && r.type === "unknown", r);
@@ -60,7 +60,7 @@ const [first, ...rest] = r.technicians ?? [];
 const anil = rest.find((t) => t.name === "Anil Kale");
 check("tech list AC: Ramesh first (household)", first?.name === "Ramesh Patil" && first?.relationship === "known", r);
 check("tech list AC: Ramesh history ₹600, typical range from 3 points", first?.your_history?.last_paid === 600 && first?.typical_price_range?.data_points === 3, first);
-check("tech list AC: Anil is Priya's own (known) AC technician, after Ramesh, available, 1 open complaint", rest[0]?.name === "Anil Kale" && anil?.relationship === "known" && anil?.availability_status === "available" && anil?.opted_in === true && anil?.phone === "+919823562151" && anil?.open_complaints === 1, rest);
+check("tech list AC: Anil is Priya's own (known) AC technician, after Ramesh, available, 1 open complaint", rest[0]?.name === "Anil Kale" && anil?.relationship === "known" && anil?.availability_status === "available" && anil?.opted_in === true && anil?.phone === "+918308407020" && anil?.open_complaints === 1, rest);
 check("tech list AC: no brand warning", r.brand_only_warning === null, r.brand_only_warning);
 r = await call("technician_list_for_appliance", { household_id: "hh_priya", appliance_type: "washing_machine" });
 check("tech list WM: brand_only warning", typeof r.brand_only_warning === "string", r);
@@ -87,7 +87,7 @@ r = await call("job_update", { job_id: jobId, fields: { colour: "red" } });
 check("job_update unknown field -> INVALID_INPUT", r.error_code === "INVALID_INPUT", r);
 console.log("      validation error looks like:", JSON.stringify(r).slice(0, 300));
 
-r = await call("jobs_open_for_party", { phone: "+918369502720" });
+r = await call("jobs_open_for_party", { phone: "+919823562151" });
 check("jobs_open_for_party Ramesh sees AC job", r.type === "technician" && r.jobs.some((j) => j.id === jobId), r);
 r = await call("jobs_open_for_party", { phone: "+919000000002" });
 check("jobs_open_for_party Rohan sees 2 open jobs", r.type === "member" && r.jobs.length === 2, r);
@@ -156,7 +156,7 @@ check("appliance_update", r.appliance?.status === "faulty", r);
 r = await call("appliance_add", { household_id: newHh, type: "fridge", purchase_date: "10/01/2024" });
 check("appliance_add bad date -> INVALID_INPUT", r.error_code === "INVALID_INPUT", r);
 
-r = await call("technician_add", { name: "Ramesh", phone: "+918369502720", skills: ["washing_machine"], household_id: newHh });
+r = await call("technician_add", { name: "Ramesh", phone: "+919823562151", skills: ["washing_machine"], household_id: newHh });
 check("technician_add existing phone -> already_existed, skills merged", r.already_existed === true && r.technician.skills.includes("washing_machine") && r.technician.skills.includes("ac"), r);
 r = await call("technician_update", { technician_id: "tech_ramesh", fields: { availability_status: "away", availability_until: "2026-10-06T09:00:00+05:30" } });
 check("technician_update away", r.technician?.availability_status === "away", r);

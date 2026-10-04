@@ -74,7 +74,7 @@ const err = await callText("/janus/mcp", "compute_distance_matrix", { sources: [
 check("  Delhivery errors keep 'HTTP 400:' prefix via /janus/mcp", err.startsWith("HTTP 400: ") && err.includes("outside India"), err);
 r = await same("pinelabs get_payout_balance (partner format)", "pinelabs", "get_payout_balance", {});
 check("  ...balance in paise", typeof r.balance?.value === "number" && r.ok === undefined, r);
-r = await same("custom technician_identity_check", "custom", "technician_identity_check", { name: "Ramesh", phone: "+918369502720" }, "checked_at");
+r = await same("custom technician_identity_check", "custom", "technician_identity_check", { name: "Ramesh", phone: "+919823562151" }, "checked_at");
 check("  ...verified", r.status === "verified", r);
 r = await same("whatsapp guard", "whatsapp", "send_whatsapp", { to: "+919812345678", body: "hi" });
 check("  ...RECIPIENT_UNKNOWN (no message sent)", r.error_code === "RECIPIENT_UNKNOWN", r);

@@ -1,4 +1,5 @@
--- Janus demo cast. Real phones: Priya = Shruti, Ramesh = Aarya, Suresh = Gayatri, Anil = Samiksha. Others (+9190000000xx) are still placeholders.
+-- Janus demo cast. Real phones: Priya = Shruti, Ramesh = Samiksha, Anil = Gayatri. Others (+9190000000xx, incl. Suresh) are placeholders.
+-- Every phone belongs to exactly one person across members and technicians.
 -- Dates near "today" are relative (current_date) so the demo always looks fresh after a reset.
 
 SET TIME ZONE 'Asia/Kolkata';
@@ -35,9 +36,9 @@ INSERT INTO members (id, household_id, phone, name, role, language) VALUES
 -- ───────────────────────── Technicians ─────────────────────────
 
 INSERT INTO technicians (id, name, phone, skills, contact_pref, languages, opted_in, availability_status, source, upi_id, area) VALUES
-  ('tech_ramesh', 'Ramesh Patil', '+918369502720', '{ac,fridge}',   'text',       '{mr,hi}',    true,  'available', 'household',   'ramesh.cooling@okaxis', 'Baner'),
-  ('tech_suresh', 'Suresh More',  '+918308407020', '{ro_purifier}', 'voice_note', '{mr,hi}',    true,  'available', 'society_log', 'suresh.ro@ybl',         'Baner'),
-  ('tech_anil',   'Anil Kale',    '+919823562151', '{ac}',          'text',       '{hi,mr,en}', true,  'available', 'society_log', 'anil.kale@okicici',     'Aundh');
+  ('tech_ramesh', 'Ramesh Patil', '+919823562151', '{ac,fridge}',   'text',       '{mr,hi}',    true,  'available', 'household',   'ramesh.cooling@okaxis', 'Baner'),
+  ('tech_suresh', 'Suresh More',  '+919000000012', '{ro_purifier}', 'voice_note', '{mr,hi}',    true,  'available', 'society_log', 'suresh.ro@ybl',         'Baner'),
+  ('tech_anil',   'Anil Kale',    '+918308407020', '{ac}',          'text',       '{hi,mr,en}', true,  'available', 'society_log', 'anil.kale@okicici',     'Aundh');
 
 -- added_at keeps the order technician_list_for_appliance shows: Ramesh (Priya's regular since Apr 2025) before Anil.
 INSERT INTO household_technicians (household_id, technician_id, appliance_types, relationship, note, added_at) VALUES
@@ -193,11 +194,11 @@ INSERT INTO technician_directory (id, name, business_name, phone, skills, addres
 -- Pine Labs KYC'd merchants. Ramesh, Suresh, Anil and Mahesh verify.
 -- Santosh's phone is registered under a different legal name (mismatch). Vikas (dir_vikas) is NOT a merchant (not_found).
 INSERT INTO pine_merchants (merchant_id, legal_name, display_name, phone, upi_id, kyc_status, city, onboarded_at) VALUES
-  ('PLM100231', 'Ramesh Patil',  'Ramesh Cooling Works',    '+918369502720', 'ramesh.cooling@okaxis', 'verified', 'Pune', '2023-02-11'),
-  ('PLM100487', 'Suresh More',   'Suresh RO Care',          '+918308407020', 'suresh.ro@ybl',         'verified', 'Pune', '2022-11-03'),
+  ('PLM100231', 'Ramesh Patil',  'Ramesh Cooling Works',    '+919823562151', 'ramesh.cooling@okaxis', 'verified', 'Pune', '2023-02-11'),
+  ('PLM100487', 'Suresh More',   'Suresh RO Care',          '+919000000012', 'suresh.ro@ybl',         'verified', 'Pune', '2022-11-03'),
   ('PLM100912', 'Mahesh Pawar',  'Shree Sai Cooling',       '+919000000021', 'shreesaicooling@okhdfcbank', 'verified', 'Pune', '2024-06-19'),
   ('PLM101377', 'Sunil Jadhav',  'Om Electricals',          '+919000000023', 'omelectricals@okicici', 'verified', 'Pune', '2024-01-08'),
-  ('PLM101588', 'Anil Kale',     'Anil AC Services',        '+919823562151', 'anil.kale@okicici',     'verified', 'Pune', '2024-03-12');
+  ('PLM101588', 'Anil Kale',     'Anil AC Services',        '+918308407020', 'anil.kale@okicici',     'verified', 'Pune', '2024-03-12');
 
 -- ───────────────────────── Pine Labs mock: payout balance ─────────────────────────
 -- ₹2,000 so that a ₹2,500 payout fails with INSUFFICIENT_BALANCE.

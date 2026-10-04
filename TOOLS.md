@@ -126,7 +126,7 @@ Worked examples (demo data): AC `gas_top_up` ₹650 → fair (Priya paid ₹600 
 
 - **Is the technician really here?** When he shares his WhatsApp location, call `proof_of_presence {job_id, technician_phone, latitude, longitude, timestamp: received_at}` → `present` true (within 200 m) / false / "unknown" (no location, older than 15 min, or not this job's technician), with `distance_m` and `minutes_from_slot`. Use it before marking the job `in_progress` or when the household says he never came.
 - **Nobody available?** `technician_discovery {appliance_type, latitude, longitude, radius_m}` lists nearby businesses (from Delhivery POI data) with phone, rating, distance and ETA. From Priya's home: AC → Shree Sai Cooling (1.2 km, ~4 min), Om Electricals (2.7 km).
-- **Is he who he says?** `technician_identity_check {name, phone, upi_id?}` → `verified` / `mismatch` (registered name shown masked) / `not_found`. Check before paying a technician the household doesn't know. Demo: Ramesh, Suresh and Anil verify; Santosh's number is registered to someone else (mismatch); Vikas (+919000000022) isn't a Pine Labs merchant (not_found).
+- **Is he who he says?** `technician_identity_check {name, phone, upi_id?}` → `verified` / `mismatch` (registered name shown masked) / `not_found`. Check before paying a technician the household doesn't know. Demo cases: **Ramesh Patil + +919823562151** (UPI `ramesh.cooling@okaxis`) → verified; **Anil Kale + +918308407020** (UPI `anil.kale@okicici`) → verified; Suresh More + +919000000012 → verified; Santosh Jadhav + +919000000023 → mismatch (registered to someone else); Vikas Shinde + +919000000022 → not_found (not a Pine Labs merchant).
 
 ## Receiving WhatsApp messages (Janus's inbox)
 
@@ -153,7 +153,7 @@ AgenticOrg's native Twilio connector failed its connection test, so Janus sends 
 
 ## Demo data (after a reset)
 
-Real phones: **Priya = Shruti** (+918530921384), **Ramesh = Aarya** (+918369502720), **Suresh = Gayatri** (+918308407020), **Anil = Samiksha** (+919823562151). Rohan is still a **placeholder** (+919000000002); ids stay the same.
+Real phones: **Priya = Shruti** (+918530921384), **Ramesh = Samiksha** (+919823562151), **Anil = Gayatri** (+918308407020). **Suresh** (+919000000012) and **Rohan** (+919000000002) are placeholders that nobody answers. Every phone belongs to exactly one person; ids stay the same.
 
 **Society** `soc_sai_heights` — Sai Heights, Baner, Pune 411045.
 
@@ -177,9 +177,9 @@ Real phones: **Priya = Shruti** (+918530921384), **Ramesh = Aarya** (+9183695027
 
 | Id | Name | Phone | Fixes | Contact | Opted in | Where from |
 | --- | --- | --- | --- | --- | --- | --- |
-| `tech_ramesh` | Ramesh Patil | +918369502720 | AC, fridge | text | yes | Priya's own technician (also recommended in society) |
-| `tech_suresh` | Suresh More | +918308407020 | RO | voice note | yes | Priya's RO AMC + society log (2 recommendations) |
-| `tech_anil` | Anil Kale | +919823562151 | AC | text | yes (available) | Priya's **second AC technician** (in her own list, after Ramesh; also in the society log); verified Pine Labs merchant (UPI `anil.kale@okicici`); **1 open complaint** from another flat (gas top-up failed again) |
+| `tech_ramesh` | Ramesh Patil | +919823562151 | AC, fridge | text | yes | Priya's own technician (also recommended in society) |
+| `tech_suresh` | Suresh More | +919000000012 | RO | voice note | yes | Priya's RO AMC + society log (2 recommendations) |
+| `tech_anil` | Anil Kale | +918308407020 | AC | text | yes (available) | Priya's **second AC technician** (in her own list, after Ramesh; also in the society log); verified Pine Labs merchant (UPI `anil.kale@okicici`); **1 open complaint** from another flat (gas top-up failed again) |
 
 **Past jobs and prices (Priya)**
 
@@ -1398,7 +1398,7 @@ Is the technician really at the household? Compares the location he shared (lati
 
 Example:
 ```json
-{"tool":"proof_of_presence","arguments":{"job_id":"job_…","technician_phone":"+918369502720","latitude":18.5604,"longitude":73.7813,"timestamp":"2026-10-03T17:05:00+05:30"}}
+{"tool":"proof_of_presence","arguments":{"job_id":"job_…","technician_phone":"+919823562151","latitude":18.5604,"longitude":73.7813,"timestamp":"2026-10-03T17:05:00+05:30"}}
 ```
 
 ### `technician_discovery`
@@ -1433,7 +1433,7 @@ Is this technician who he says he is? Checks his name, phone and (optionally) UP
 
 Example:
 ```json
-{"tool":"technician_identity_check","arguments":{"name":"Ramesh Patil","phone":"+918369502720","upi_id":"ramesh.cooling@okaxis"}}
+{"tool":"technician_identity_check","arguments":{"name":"Ramesh Patil","phone":"+919823562151","upi_id":"ramesh.cooling@okaxis"}}
 ```
 
 ## Connector `mcp_whatsapp_janus_pict` — 3 tools
@@ -1471,7 +1471,7 @@ Place one real voice call to a known household member or technician (anyone else
 
 Example:
 ```json
-{"tool":"make_call","arguments":{"to":"+918369502720","message":"Priya in Sai Heights, Baner needs her AC repaired. Please reply on WhatsApp if you can come.","language":"hi-IN"}}
+{"tool":"make_call","arguments":{"to":"+919823562151","message":"Priya in Sai Heights, Baner needs her AC repaired. Please reply on WhatsApp if you can come.","language":"hi-IN"}}
 ```
 
 ### `get_message_status`

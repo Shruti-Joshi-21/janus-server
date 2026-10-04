@@ -15,7 +15,7 @@ async function rpc(path, method, params) {
 }
 const custom = async (name, args) => (await rpc("/custom/mcp", "tools/call", { name, arguments: args })).structuredContent;
 const core = async (name, args) => (await rpc("/janus-core/mcp", "tools/call", { name, arguments: args })).structuredContent;
-const RAMESH = "+918369502720", SURESH = "+918308407020";
+const RAMESH = "+919823562151", SURESH = "+919000000012";
 const JOB = "job_priya_ac_gas_2025"; // Priya's AC job with Ramesh (seeded)
 const nowIso = () => new Date().toISOString();
 const minsAgo = (m) => new Date(Date.now() - m * 60_000).toISOString();
@@ -27,7 +27,7 @@ check("3 custom tools", list.tools.map((t) => t.name).sort().join() === "proof_o
 let r = await custom("proof_of_presence", { job_id: JOB, technician_phone: RAMESH, latitude: 18.5604, longitude: 73.7813, timestamp: nowIso() });
 console.log("      ", r.explanation);
 check("Ramesh at Sai Heights -> present true, ~15 m, partner Delhivery", r.ok && r.present === true && r.distance_m < 50 && r.partner === "Delhivery" && typeof r.minutes_from_slot === "number", r);
-r = await custom("proof_of_presence", { job_id: JOB, technician_phone: "83695 02720", latitude: 18.5712, longitude: 73.7795, timestamp: nowIso() });
+r = await custom("proof_of_presence", { job_id: JOB, technician_phone: "98235 62151", latitude: 18.5712, longitude: 73.7795, timestamp: nowIso() });
 console.log("      ", r.explanation);
 check("Ramesh at his shop (Balewadi) -> present false, ~1.2 km", r.present === false && r.distance_m > 1000 && r.distance_m < 1500 && r.reason === "too_far", r);
 r = await custom("proof_of_presence", { job_id: JOB, technician_phone: RAMESH, timestamp: nowIso() });
@@ -58,8 +58,8 @@ check("wrong UPI -> mismatch on upi_id", r.status === "mismatch" && r.mismatched
 r = await custom("technician_identity_check", { name: "Santosh Jadhav", phone: "+919000000023" });
 console.log("      ", r.explanation);
 check("Santosh's phone registered to someone else -> mismatch, masked name only", r.status === "mismatch" && r.registered_name_hint === "S**** J*****" && !JSON.stringify(r).includes("Sunil"), r);
-r = await custom("technician_identity_check", { name: "Anil Kale", phone: "+919823562151", upi_id: "anil.kale@okicici" });
-check("Anil (Samiksha's number) -> verified, phone/name/upi matched", r.status === "verified" && r.matched_fields.join() === "phone,name,upi_id", r);
+r = await custom("technician_identity_check", { name: "Anil Kale", phone: "+918308407020", upi_id: "anil.kale@okicici" });
+check("Anil (Gayatri's number) -> verified, phone/name/upi matched", r.status === "verified" && r.matched_fields.join() === "phone,name,upi_id", r);
 r = await custom("technician_identity_check", { name: "Vikas Shinde", phone: "+919000000022" });
 check("Vikas -> not_found (not a Pine Labs merchant)", r.status === "not_found", r);
 

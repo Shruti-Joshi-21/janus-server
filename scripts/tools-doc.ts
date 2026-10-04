@@ -118,7 +118,7 @@ const NOTES: Record<string, { returns: string; example: Record<string, unknown> 
   get_payout_balance: { returns: "`accountNumber`, `branchCode`, `balance` {value (paise), currency}", example: {} },
   proof_of_presence: {
     returns: "`partner: \"Delhivery\"`, `present` (true | false | \"unknown\"), `distance_m`, `minutes_from_slot`, `location_age_minutes`, `reason` (at_household | too_far | no_location | stale_location | not_job_technician | household_not_geocoded), `explanation`, `technician`, `household_location`, `confirmed_slot`",
-    example: { job_id: "job_…", technician_phone: "+918369502720", latitude: 18.5604, longitude: 73.7813, timestamp: "2026-10-03T17:05:00+05:30" },
+    example: { job_id: "job_…", technician_phone: "+919823562151", latitude: 18.5604, longitude: 73.7813, timestamp: "2026-10-03T17:05:00+05:30" },
   },
   technician_discovery: {
     returns: "`partner: \"Delhivery\"`, `count`, `technicians[]` {name, business_name, phone, skills, rating, address, distance_m, eta_minutes_motorcycle, already_known_technician_id, source}, `reason` (found | none_found), `nearest_outside_radius_m` + `hint` when none found",
@@ -126,7 +126,7 @@ const NOTES: Record<string, { returns: string; example: Record<string, unknown> 
   },
   technician_identity_check: {
     returns: "`partner: \"Pine Labs\"`, `status` (verified | mismatch | not_found), `matched_fields[]`, `mismatched_fields[]`, `merchant` {display_name, city, onboarded_at}, `registered_name_hint` (masked, on mismatch), `checked_at`, `explanation`",
-    example: { name: "Ramesh Patil", phone: "+918369502720", upi_id: "ramesh.cooling@okaxis" },
+    example: { name: "Ramesh Patil", phone: "+919823562151", upi_id: "ramesh.cooling@okaxis" },
   },
   send_whatsapp: {
     returns: "`message_sid`, `status` (Twilio's, usually queued), `to`, `recipient` {name, type, household_id}, `notification_id` (auto-logged for household members; null for technicians), `sent_at` (ISO UTC), `partner`. Errors: RECIPIENT_UNKNOWN, NOT_JOINED_SANDBOX, OUTSIDE_24H_WINDOW, INVALID_PHONE, TWILIO_TIMEOUT, TWILIO_RATE_LIMITED, TWILIO_AUTH_FAILED, TWILIO_ERROR (+ twilio_code, twilio_message)",
@@ -134,7 +134,7 @@ const NOTES: Record<string, { returns: string; example: Record<string, unknown> 
   },
   make_call: {
     returns: "`call_sid`, `status`, `to`, `recipient`, `partner`. Errors: RECIPIENT_UNKNOWN, NO_VOICE_NUMBER, TWILIO_* as above",
-    example: { to: "+918369502720", message: "Priya in Sai Heights, Baner needs her AC repaired. Please reply on WhatsApp if you can come.", language: "hi-IN" },
+    example: { to: "+919823562151", message: "Priya in Sai Heights, Baner needs her AC repaired. Please reply on WhatsApp if you can come.", language: "hi-IN" },
   },
   get_message_status: {
     returns: "`message_sid`, `status` (queued | sent | delivered | read | failed | undelivered), `error_code_twilio` (also as `twilio_error_code`), `error_hint` (when failed), `to`, `date_sent`, `partner`",

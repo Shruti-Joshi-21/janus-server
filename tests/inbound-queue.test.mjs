@@ -30,7 +30,7 @@ const ids = { a: `evt_test_${run}_a`, b: `evt_test_${run}_b`, c: `evt_test_${run
 await sql`
   INSERT INTO inbound_events (id, from_phone, text, received_at, twilio_message_sid) VALUES
     (${ids.a}, '+918530921384', 'AC band ho gaya hai', '2000-01-01T00:00:01Z', ${"SMtest" + run + "a"}),
-    (${ids.b}, '+918369502720', 'Kal 5 baje aata hoon', '2000-01-01T00:00:02Z', ${"SMtest" + run + "b"}),
+    (${ids.b}, '+919823562151', 'Kal 5 baje aata hoon', '2000-01-01T00:00:02Z', ${"SMtest" + run + "b"}),
     (${ids.c}, '+919812345678', 'Hello?', '2000-01-01T00:00:03Z', ${"SMtest" + run + "c"})`;
 
 try {

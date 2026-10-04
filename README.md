@@ -107,7 +107,7 @@ Run `npm run calls` right after a test. New rows show which tools ran and their 
 
 - `db/schema.sql`: all tables. `db/seed.sql`: the demo cast (Priya, Rohan, Ramesh, Suresh, Anil, appliances, past jobs, prices, Delhivery places, Pine Labs data). `db/ops.sql`: the call log, which survives resets.
 - `db/reference_prices_sources.csv`: the team-collected price list behind `reference_prices` (sources, links, dates).
-- Real phone numbers: Priya = Shruti, Ramesh = Aarya, Suresh = Gayatri, Anil = Samiksha. Rohan is a placeholder (`+919000000002`).
+- Real phone numbers: Priya = Shruti, Ramesh = Samiksha, Anil = Gayatri. Suresh (`+919000000012`) and Rohan (`+919000000002`) are placeholders.
 - Placeholders still to replace: AC gas top-up low end (₹700) until technician calls; the yearly price-rise rates (6% parts, 8% labour); geyser heating element and thermostat prices.
 
 ## Project layout
