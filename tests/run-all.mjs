@@ -24,6 +24,19 @@ const suites = [
 ];
 
 const reset = () => execSync("npm run reset", { stdio: "ignore" });
+
+// Check the server answers BEFORE touching the database, so a missing server never causes a pointless reset.
+try {
+  const res = await fetch(`${base}/api/health`, { signal: AbortSignal.timeout(10_000) });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+} catch (err) {
+  console.error(`No server answering at ${base} (${err.cause?.code ?? err.message}).`);
+  console.error(base.includes("localhost")
+    ? "Start it first in another terminal with:  npm run dev\nor test the live server with:  npm test -- https://janus-server.vercel.app"
+    : "Check the URL and that the deployment is Ready in Vercel.");
+  console.error("Nothing was run and the database was NOT reset.");
+  process.exit(1);
+}
 console.log(`Testing ${base}\n`);
 let totalPass = 0;
 let totalFail = 0;
