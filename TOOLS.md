@@ -162,7 +162,7 @@ Real phones: **Priya = Shruti** (+918530921384), **Ramesh = Samiksha** (+9198235
 | Member | Id | Phone | Role |
 | --- | --- | --- | --- |
 | Priya | `mem_priya` | +918530921384 | decider |
-| Rohan (husband) | `mem_rohan` | +919000000002 | decider |
+| Rohan (husband) | `mem_rohan` | +919000000002 (placeholder, nobody answers) | **notified** (not a decider: Priya is the only decider; Janus shouldn't message his number) |
 
 **Appliances** (4)
 

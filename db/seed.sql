@@ -28,7 +28,7 @@ INSERT INTO households (id, society_id, name, flat, address, latitude, longitude
 
 INSERT INTO members (id, household_id, phone, name, role, language) VALUES
   ('mem_priya',  'hh_priya',     '+918530921384', 'Priya',          'decider', 'mr-hi-en'),
-  ('mem_rohan',  'hh_priya',     '+919000000002', 'Rohan',          'decider', 'hi-en'),
+  ('mem_rohan',  'hh_priya',     '+919000000002', 'Rohan',          'notified', 'hi-en'),  -- placeholder phone: Priya is the only decider
   ('mem_neha',   'hh_mehta',     '+919000000031', 'Neha Mehta',     'both',    'hi-en'),
   ('mem_ajit',   'hh_kulkarni',  '+919000000032', 'Ajit Kulkarni',  'both',    'mr-en'),
   ('mem_sunita', 'hh_deshpande', '+919000000033', 'Sunita Deshpande','both',   'mr-en');
