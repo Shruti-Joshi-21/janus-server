@@ -13,6 +13,7 @@ const KNOWN_CODES: Record<number, { code: string; message: string }> = {
   20003: { code: "TWILIO_AUTH_FAILED", message: "Twilio rejected our credentials. Tell Track A (check TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN in Vercel)." },
   63015: { code: "NOT_JOINED_SANDBOX", message: "" }, // filled in by sandboxJoinMessage()
   63016: { code: "OUTSIDE_24H_WINDOW", message: "This person hasn't messaged in the last 24 hours, so WhatsApp only allows an approved template. Use Gmail instead." },
+  63038: { code: "DAILY_LIMIT_REACHED", message: "The Twilio account has reached its daily WhatsApp message limit. Don't retry today; use Gmail instead and tell Track A." },
 };
 
 export function sandboxJoinMessage(): string {
@@ -28,7 +29,7 @@ export function mapTwilioError(httpStatus: number | null, twilioCode: number | n
     return new ToolError(known.code, known.code === "NOT_JOINED_SANDBOX" ? sandboxJoinMessage() : known.message, details);
   }
   if (httpStatus === 401) return new ToolError("TWILIO_AUTH_FAILED", KNOWN_CODES[20003].message, details);
-  if (httpStatus === 429) return new ToolError("TWILIO_RATE_LIMITED", "Twilio is rate-limiting us. Wait a few seconds and try again.", details);
+  if (httpStatus === 429) return new ToolError("TWILIO_RATE_LIMITED", "Twilio is rate-limiting us (one retry after 3.5 s was already tried when time allowed). Wait a little before sending again.", details);
   return new ToolError("TWILIO_ERROR", `Twilio error${twilioCode ? ` ${twilioCode}` : ""}: ${twilioMessage ?? "unknown"}`, details);
 }
 
@@ -53,7 +54,7 @@ function credentials(): { sid: string; token: string } {
 type TwilioJson = Record<string, unknown>;
 
 // One request to Twilio. Never retries (a retry could send a message twice).
-export async function twilioRequest(path: string, form?: Record<string, string>): Promise<TwilioJson> {
+export async function twilioRequest(path: string, form?: Record<string, string>, timeoutMs = TWILIO_TIMEOUT_MS): Promise<TwilioJson> {
   const { sid, token } = credentials();
   let res: Response;
   try {
@@ -64,13 +65,13 @@ export async function twilioRequest(path: string, form?: Record<string, string>)
         ...(form ? { "content-type": "application/x-www-form-urlencoded" } : {}),
       },
       body: form ? new URLSearchParams(form).toString() : undefined,
-      signal: AbortSignal.timeout(TWILIO_TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (err) {
     if ((err as Error).name === "TimeoutError") {
-      throw new ToolError("TWILIO_TIMEOUT", `Twilio did not answer within ${TWILIO_TIMEOUT_MS / 1000} seconds. The message may still have been sent: check get_message_status before resending.`);
+      throw new ToolError("TWILIO_TIMEOUT", `Twilio did not answer within ${(timeoutMs / 1000).toFixed(1)} seconds. The message may still have been sent: check get_message_status before resending.`, { twilio_code: null });
     }
-    throw new ToolError("TWILIO_ERROR", `Could not reach Twilio: ${(err as Error).message}`);
+    throw new ToolError("TWILIO_ERROR", `Could not reach Twilio: ${(err as Error).message}`, { twilio_code: null });
   }
   const json = (await res.json().catch(() => ({}))) as TwilioJson;
   if (!res.ok) throw mapTwilioError(res.status, (json.code as number) ?? null, (json.message as string) ?? null);

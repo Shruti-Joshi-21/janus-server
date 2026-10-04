@@ -32,6 +32,7 @@ export type Call = { ok: boolean; status: number | null; body: Record<string, un
 // One step tool run: collects the internal calls it made, for its `steps` answer.
 export class StepRun {
   steps: Step[] = [];
+  started = Date.now(); // the step tool must finish within 10 s of this
   constructor(public stepTool: string) {}
 
   async call(tool: string, args: Record<string, unknown>): Promise<Call> {

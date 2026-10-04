@@ -3,6 +3,7 @@ import * as chrono from "chrono-node";
 import { sql } from "@/lib/db";
 import { ToolError } from "@/lib/mcp";
 import { phoneOrFail } from "@/lib/phone";
+import { SEND_COST_MS, sendDeadline, waitForSlot } from "@/lib/whatsapp/pace";
 import type { StepRun } from "./internal";
 
 const TZ = "Asia/Kolkata";
@@ -121,14 +122,21 @@ export function parseSlot(text: string, received: Date): Date | null {
   return new Date(`${day}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00+05:30`);
 }
 
-// Send several WhatsApps in parallel through the real send_whatsapp tool. Failures are reported, not thrown.
+// Send WhatsApps one at a time (send_whatsapp spaces them 3.5 s apart) through the real send_whatsapp tool.
+// The step tool must finish under 10 s, so a message that can't be sent in time is reported as not sent
+// (NOT_SENT_TIME_LIMIT: Janus can send it with send_whatsapp). Failures are reported, not thrown.
+const STEP_DEADLINE_MS = 9500;
 export async function sendAll(run: StepRun, messages: { to: string | null | undefined; to_name: string; body: string }[]) {
-  const results = await Promise.all(
-    messages.filter((m) => m.to).map(async (m) => {
-      const r = await run.call("send_whatsapp", { to: m.to, body: m.body });
-      return { to_name: m.to_name, body: m.body, sent: r.ok, ...(r.ok ? {} : { error_code: r.body.error_code ?? null }) };
-    }),
-  );
+  const deadline = run.started + STEP_DEADLINE_MS;
+  const results = [];
+  for (const m of messages.filter((x) => x.to)) {
+    if (Date.now() + waitForSlot() + SEND_COST_MS > deadline) {
+      results.push({ to_name: m.to_name, body: m.body, sent: false, error_code: "NOT_SENT_TIME_LIMIT", twilio_code: null });
+      continue;
+    }
+    const r = await sendDeadline.run(deadline, () => run.call("send_whatsapp", { to: m.to, body: m.body }));
+    results.push({ to_name: m.to_name, body: m.body, sent: r.ok, ...(r.ok ? {} : { error_code: r.body.error_code ?? null, twilio_code: r.body.twilio_code ?? null }) });
+  }
   return results;
 }
 

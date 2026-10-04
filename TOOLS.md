@@ -25,7 +25,7 @@ When new tools are added to a connector, AgenticOrg only sees them after the con
 
 ## Step tools (one call = one whole step of a rule)
 
-Five tools on `/janus/mcp` that each do a complete step on the server: they call the existing tools in order, send the WhatsApps (decider + technician, in parallel), and report what happened. Janus only decides **which** step applies, then calls one tool. Each finishes in under 8 seconds.
+Five tools on `/janus/mcp` that each do a complete step on the server: they call the existing tools in order, send the WhatsApps (decider + technician, **one at a time, at least 3.5 s apart**), and report what happened. Janus only decides **which** step applies, then calls one tool. Each finishes in under 10 seconds: a message that would not fit comes back with `sent: false, error_code: "NOT_SENT_TIME_LIMIT"`. Send that one yourself with `send_whatsapp`, and resend nothing else.
 
 | When | Call | `decision` / `outcome` |
 | --- | --- | --- |
@@ -96,6 +96,8 @@ If your eval cases use other words: requested → `new`, assigned → `contactin
 | `SLOT_UNPARSEABLE` | `technician_proposed_time`: no day/time could be read from `slot_text`. Ask him for a day and time | — |
 | `NO_OPEN_JOB` | Step tool: the technician / household has no open job for that step | — |
 | `SPEND_LIMIT_EXCEEDED` | `pay_through_janus`: amount above the household spend limit; the decider has already been asked to confirm | `messages_sent`, `steps` |
+| `DAILY_LIMIT_REACHED` | `send_whatsapp`: Twilio 63038, the account hit its daily WhatsApp limit. Not retried; use Gmail | `twilio_code`, `twilio_message` |
+| `NOT_SENT_TIME_LIMIT` | Step tool `messages_sent[]` entry: not sent because it would push the tool past 10 s. Send it with `send_whatsapp` | — |
 | `ALREADY_PAID` | `pay_through_janus`: this job was already paid through Janus. Nothing was paid again | `job_id` |
 | `NOTHING_TO_PAY` | `pay_through_janus`: no job awaiting payment (call `bill_reported` first) or no amount | `job_id` |
 | `NO_TECHNICIAN`, `NO_TECHNICIAN_UPI`, `MISSING_APPLIANCE`, `NO_PINE_LABS_CUSTOMER` | Step tool is missing data it needs on the job | — |
@@ -169,7 +171,9 @@ AgenticOrg's native Twilio connector failed its connection test, so Janus sends 
 - Messages to household members are **logged as notifications automatically** (`notification_list` shows them); Janus doesn't need to call `notification_log` for its WhatsApps.
 - `get_message_status {message_sid}` → queued / sent / delivered / read / failed / undelivered (+ `error_hint`). Confirm delivery before telling someone "sent". After `TWILIO_TIMEOUT`, check status before resending; the tool never resends by itself.
 - `make_call {to, message, language: "en-IN" | "hi-IN"}` → one voice call that always begins "Hello, this is Janus, an AI assistant." Returns `NO_VOICE_NUMBER` if the Twilio account has no voice number configured.
-- Errors: RECIPIENT_UNKNOWN, INVALID_INPUT, INVALID_PHONE, NOT_JOINED_SANDBOX, OUTSIDE_24H_WINDOW, TWILIO_AUTH_FAILED (tell Track A), TWILIO_RATE_LIMITED (wait and retry), TWILIO_TIMEOUT, TWILIO_ERROR (+ `twilio_code`, `twilio_message`), NO_VOICE_NUMBER, MESSAGE_NOT_FOUND.
+- **Pacing:** the sandbox allows about 1 message every 3 s, so the server sends one message at a time, at least 3.5 s after the previous one. A `send_whatsapp` call may therefore wait up to 3.5 s before sending. Never send WhatsApps in parallel.
+- On Twilio **429** the tool waits 3.5 s and retries **once** by itself (a 429 means nothing was sent, so this can never double-send); if it is still limited you get `TWILIO_RATE_LIMITED` with `retried: true`. On **63038** (`DAILY_LIMIT_REACHED`: the account hit its daily WhatsApp limit) it does not retry: use Gmail for the rest of the day.
+- Errors (every one carries `twilio_code`, null when Twilio gave none): RECIPIENT_UNKNOWN, INVALID_INPUT, INVALID_PHONE, NOT_JOINED_SANDBOX (63015), OUTSIDE_24H_WINDOW (63016), DAILY_LIMIT_REACHED (63038), TWILIO_AUTH_FAILED (tell Track A), TWILIO_RATE_LIMITED (429, already retried once), TWILIO_TIMEOUT, TWILIO_ERROR (+ `twilio_message`), NO_VOICE_NUMBER, MESSAGE_NOT_FOUND.
 
 ## Demo data (after a reset)
 
@@ -284,7 +288,7 @@ Neighbours (3 other flats, never named to Priya) add AC gas top-up payments of �
 | `custom.next_presence` | not_present, no_location, stale_location, timeout | proof_of_presence | **yes** |
 | `custom.next_discovery` | none_found, timeout | technician_discovery | **yes** |
 | `custom.next_identity` | verified, not_found, mismatch, timeout | technician_identity_check | **yes** |
-| `whatsapp.next_send` | timeout, not_joined, outside_window, failed | send_whatsapp (answers without calling Twilio) | **yes** |
+| `whatsapp.next_send` | timeout, not_joined, outside_window, failed, rate_limited (429 on both tries), daily_limit (63038) | send_whatsapp (answers without calling Twilio) | **yes** |
 | `gnani.next_stt` | timeout, malformed, low_confidence | gnani_speech_to_text | **yes** |
 | `gnani.next_tts` | timeout, malformed | gnani_text_to_speech | **yes** |
 
@@ -907,7 +911,7 @@ Example:
 
 ### `scenario_set`
 
-Switch on a failure for testing: the next call(s) of that mock fail the way you choose. uses = how many calls it affects (default 1; 0 = until scenario_clear). Setting a key again replaces it. Keys and values: delhivery.next_validate = incomplete|not_found|timeout|malformed; delhivery.next_geocode = not_found|timeout|malformed; delhivery.next_reverse_geocode = unknown_coordinates|timeout|malformed; delhivery.next_matrix = unknown_coordinates|timeout|malformed; delhivery.next_autosuggest = not_found|timeout|malformed; pinelabs.next_mandate = declined|limit_exceeded|timeout|malformed; pinelabs.next_subscription = declined|timeout|malformed; pinelabs.next_payout = insufficient_balance|failed|timeout|malformed; custom.next_presence = not_present|no_location|stale_location|timeout; custom.next_discovery = none_found|timeout; custom.next_identity = verified|not_found|mismatch|timeout; whatsapp.next_send = timeout|not_joined|outside_window|failed; gnani.next_stt = timeout|malformed|low_confidence; gnani.next_tts = timeout|malformed.
+Switch on a failure for testing: the next call(s) of that mock fail the way you choose. uses = how many calls it affects (default 1; 0 = until scenario_clear). Setting a key again replaces it. Keys and values: delhivery.next_validate = incomplete|not_found|timeout|malformed; delhivery.next_geocode = not_found|timeout|malformed; delhivery.next_reverse_geocode = unknown_coordinates|timeout|malformed; delhivery.next_matrix = unknown_coordinates|timeout|malformed; delhivery.next_autosuggest = not_found|timeout|malformed; pinelabs.next_mandate = declined|limit_exceeded|timeout|malformed; pinelabs.next_subscription = declined|timeout|malformed; pinelabs.next_payout = insufficient_balance|failed|timeout|malformed; custom.next_presence = not_present|no_location|stale_location|timeout; custom.next_discovery = none_found|timeout; custom.next_identity = verified|not_found|mismatch|timeout; whatsapp.next_send = timeout|not_joined|outside_window|failed|rate_limited|daily_limit; gnani.next_stt = timeout|malformed|low_confidence; gnani.next_tts = timeout|malformed.
 
 | Input | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -1462,7 +1466,7 @@ URL: `https://janus-server.vercel.app/whatsapp/mcp` (server name `whatsapp_janus
 
 ### `send_whatsapp`
 
-Send one real WhatsApp message from the Twilio sandbox number to a known household member or technician (anyone else is refused: RECIPIENT_UNKNOWN). Give body (max 1600 characters) and/or media_url (public https link, e.g. a gnani_text_to_speech audio_url for a voice reply). Returns message_sid and Twilio's status (usually queued). If WhatsApp rejects it within a few seconds (not joined the sandbox, outside the 24-hour window) you get that error instead. Never resend after TWILIO_TIMEOUT without checking get_message_status first. Messages to household members are logged as notifications automatically (no need to call notification_log).
+Send one real WhatsApp message from the Twilio sandbox number to a known household member or technician (anyone else is refused: RECIPIENT_UNKNOWN). Give body (max 1600 characters) and/or media_url (public https link, e.g. a gnani_text_to_speech audio_url for a voice reply). Returns message_sid and Twilio's status (usually queued). If WhatsApp rejects it within a few seconds (not joined the sandbox, outside the 24-hour window) you get that error instead. Never resend after TWILIO_TIMEOUT without checking get_message_status first. Messages to household members are logged as notifications automatically (no need to call notification_log). Sends are paced one at a time, at least 3.5 s apart (sandbox limit), so this call may wait a few seconds; on Twilio 429 it retries once, on 63038 (DAILY_LIMIT_REACHED) it does not. Errors include twilio_code.
 
 | Input | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -1470,7 +1474,7 @@ Send one real WhatsApp message from the Twilio sandbox number to a known househo
 | `body` | string | no |  |
 | `media_url` | string | no | Public https URL of the media to attach |
 
-**Returns** (besides `ok: true`): `message_sid`, `status` (Twilio's, usually queued), `to`, `recipient` {name, type, household_id}, `notification_id` (auto-logged for household members; null for technicians), `sent_at` (ISO UTC), `partner`. Errors: RECIPIENT_UNKNOWN, NOT_JOINED_SANDBOX, OUTSIDE_24H_WINDOW, INVALID_PHONE, TWILIO_TIMEOUT, TWILIO_RATE_LIMITED, TWILIO_AUTH_FAILED, TWILIO_ERROR (+ twilio_code, twilio_message)
+**Returns** (besides `ok: true`): `message_sid`, `status` (Twilio's, usually queued), `to`, `recipient` {name, type, household_id}, `notification_id` (auto-logged for household members; null for technicians), `sent_at` (ISO UTC), `partner`. Errors (all with `twilio_code`, plus `twilio_message`): RECIPIENT_UNKNOWN, NOT_JOINED_SANDBOX (63015), OUTSIDE_24H_WINDOW (63016), DAILY_LIMIT_REACHED (63038, never retried), TWILIO_RATE_LIMITED (429, after one retry 3.5 s later; `retried`), INVALID_PHONE, TWILIO_TIMEOUT, TWILIO_AUTH_FAILED, TWILIO_ERROR, TEST_NUMBER (test-suite phones +917000000…, never sent)
 
 Example:
 ```json

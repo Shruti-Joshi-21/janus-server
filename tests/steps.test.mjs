@@ -26,7 +26,7 @@ async function call(name, args) {
   const line = (await res.text()).split("\n").find((l) => l.startsWith("data: "));
   const ms = Date.now() - t;
   if (STEP_TOOLS.includes(name) && ms > slowest.ms) Object.assign(slowest, { ms, tool: name });
-  return JSON.parse(line.slice(6)).result.structuredContent;
+  return { ...JSON.parse(line.slice(6)).result.structuredContent, _ms: ms };
 }
 const body = (r, to) => r.messages_sent?.find((m) => m.to_name.startsWith(to))?.body ?? "";
 const ran = (r, tool, connector) => r.steps?.some((s) => s.tool === tool && s.connector === connector);
@@ -54,7 +54,7 @@ async function cleanup() {
   await sql`DELETE FROM households WHERE id = 'tst_hh'`;
   await sql`DELETE FROM pine_merchants WHERE merchant_id LIKE 'TSTM%'`;
   await sql`DELETE FROM technicians WHERE id LIKE 'tst_tech%'`;
-  await sql`DELETE FROM scenarios WHERE key IN ('pinelabs.next_payout', 'delhivery.next_matrix', 'custom.next_identity')`;
+  await sql`DELETE FROM scenarios WHERE key IN ('pinelabs.next_payout', 'delhivery.next_matrix', 'custom.next_identity', 'whatsapp.next_send')`;
   await sql`UPDATE merchant_balance SET balance_paise = ${balanceBefore} WHERE merchant_id = 'janus_merchant'`;
 }
 
@@ -115,7 +115,7 @@ try {
   check("Delhivery malformed twice -> retried once, eta_unavailable", r.decision === "eta_unavailable" && r.steps.filter((s) => s.tool === "compute_distance_matrix").length === 2 && body(r, "Tara") === "Ravi has shared his location; I can't work out the ETA right now.", r);
   await call("scenario_set", { key: "delhivery.next_matrix", value: "timeout", uses: 2 });
   r = await call("technician_location_update", { technician_phone: T1, latitude: 18.4462, longitude: 73.8720, received_at: now });
-  check("Delhivery timeout -> eta_unavailable with no second wait (stays under 8 s)", r.decision === "eta_unavailable" && r.steps.filter((s) => s.tool === "compute_distance_matrix").length === 1, r.steps);
+  check("Delhivery timeout -> eta_unavailable with no second wait (stays under 10 s)", r.decision === "eta_unavailable" && r.steps.filter((s) => s.tool === "compute_distance_matrix").length === 1, r.steps);
   await call("scenario_clear", { key: "delhivery.next_matrix" });
   r = await call("technician_location_update", { technician_phone: T1, latitude: 18.5603, longitude: 73.7812, received_at: now });
   check("at the flat -> arrived, job in_progress, both messages", r.decision === "arrived" && body(r, "Tara") === "Ravi has arrived at your flat." && body(r, "Ravi") === "Thanks, noted you've arrived.", r);
@@ -170,6 +170,24 @@ try {
   r = await call("assign_alternate_technician", { household_phone: DEC, technician_name: "Arun" });
   check("identity switch mismatch -> not_verified", r.decision === "not_verified", r);
 
+  // ── WhatsApp pacing and Twilio errors (test numbers: never sent to Twilio) ──
+  const job5 = await newJob("contacting");
+  r = await call("technician_proposed_time", { technician_phone: T1, slot_text: "tomorrow at 5 pm" });
+  const sends = await sql`SELECT at, duration_ms FROM ops.tool_calls WHERE tool = 'send_whatsapp' AND user_agent = 'step:technician_proposed_time' AND at >= ${start.toISOString()}::timestamptz ORDER BY at DESC LIMIT 2`;
+  const gap = sends.length === 2 ? new Date(sends[0].at) - new Date(sends[1].at) : 0; // the 3.5 s wait is inside each call, so compare finish times
+  check(`2 messages sent one after the other, >= 3.5 s apart (${r._ms} ms in total)`, r.decision === "confirmed" && r.messages_sent.length === 2 && r.messages_sent.every((m) => m.error_code === "TEST_NUMBER") && r._ms >= 3500 && r._ms < 10000, { ms: r._ms, msgs: r.messages_sent });
+  check(`  the second send went out >= 3.5 s after the first (log gap ${gap} ms)`, gap >= 3400, sends);
+  await call("scenario_set", { key: "whatsapp.next_send", value: "rate_limited", uses: 1 });
+  r = await call("send_whatsapp", { to: DEC, body: "pacing test" });
+  check("Twilio 429 -> retried once (retried:true), TWILIO_RATE_LIMITED with twilio_code", r.error_code === "TWILIO_RATE_LIMITED" && r.retried === true && r.twilio_code === 20429 && r._ms < 10000, r);
+  await call("scenario_set", { key: "whatsapp.next_send", value: "daily_limit", uses: 1 });
+  r = await call("send_whatsapp", { to: DEC, body: "pacing test" });
+  check("Twilio 63038 -> DAILY_LIMIT_REACHED, twilio_code 63038, not retried", r.error_code === "DAILY_LIMIT_REACHED" && r.twilio_code === 63038 && r.retried === undefined, r);
+  await call("scenario_set", { key: "whatsapp.next_send", value: "rate_limited", uses: 1 });
+  r = await call("bill_reported", { household_phone: DEC, amount: 700, service_type: "gas_top_up" });
+  check("step tool passes Twilio's error on: messages_sent has error_code + twilio_code", r.messages_sent[0]?.error_code === "TWILIO_RATE_LIMITED" && r.messages_sent[0]?.twilio_code === 20429 && r._ms < 10000, r.messages_sent);
+  await sql`DELETE FROM jobs WHERE id = ${job5}`;
+
   // ── call log: every internal partner call has its own row ──
   const rows = await sql`SELECT DISTINCT connector, tool FROM ops.tool_calls WHERE user_agent LIKE 'step:%' AND at >= ${start.toISOString()}::timestamptz`;
   const has = (c, t) => rows.some((x) => x.connector === c && x.tool === t);
@@ -177,9 +195,8 @@ try {
     has("pinelabs", "create_payout") && has("delhivery", "compute_distance_matrix") && has("custom", "proof_of_presence") && has("custom", "technician_identity_check") && has("janus_core", "price_fairness_check") && has("whatsapp", "send_whatsapp"), rows);
   const stepRows = await sql`SELECT DISTINCT tool FROM ops.tool_calls WHERE connector = 'steps' AND at >= ${start.toISOString()}::timestamptz`;
   check("the step tools themselves are logged (connector 'steps')", stepRows.length === 5, stepRows.map((x) => x.tool));
-  // Enforced against Vercel (same region as the database); from a laptop every DB round trip is ~4x slower.
-  if (base.includes("localhost")) console.log(`INFO slowest step call locally: ${slowest.tool} ${slowest.ms} ms (the 8 s limit is checked against production)`);
-  else check(`every step call under 8 s (slowest: ${slowest.tool} ${slowest.ms} ms)`, slowest.ms < 8000, slowest);
+  // AgenticOrg cuts a tool off at 10 s; WhatsApp pacing (3.5 s between messages) is included.
+  check(`every step call under 10 s (slowest: ${slowest.tool} ${slowest.ms} ms)`, slowest.ms < 10000, slowest);
 } finally {
   await cleanup();
   const [{ n }] = await sql`SELECT count(*)::int AS n FROM jobs WHERE household_id = 'tst_hh'`;

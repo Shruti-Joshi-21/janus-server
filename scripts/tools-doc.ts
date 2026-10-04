@@ -131,7 +131,7 @@ const NOTES: Record<string, { returns: string; example: Record<string, unknown> 
     example: { name: "Ramesh Patil", phone: "+919823562151", upi_id: "ramesh.cooling@okaxis" },
   },
   send_whatsapp: {
-    returns: "`message_sid`, `status` (Twilio's, usually queued), `to`, `recipient` {name, type, household_id}, `notification_id` (auto-logged for household members; null for technicians), `sent_at` (ISO UTC), `partner`. Errors: RECIPIENT_UNKNOWN, NOT_JOINED_SANDBOX, OUTSIDE_24H_WINDOW, INVALID_PHONE, TWILIO_TIMEOUT, TWILIO_RATE_LIMITED, TWILIO_AUTH_FAILED, TWILIO_ERROR (+ twilio_code, twilio_message)",
+    returns: "`message_sid`, `status` (Twilio's, usually queued), `to`, `recipient` {name, type, household_id}, `notification_id` (auto-logged for household members; null for technicians), `sent_at` (ISO UTC), `partner`. Errors (all with `twilio_code`, plus `twilio_message`): RECIPIENT_UNKNOWN, NOT_JOINED_SANDBOX (63015), OUTSIDE_24H_WINDOW (63016), DAILY_LIMIT_REACHED (63038, never retried), TWILIO_RATE_LIMITED (429, after one retry 3.5 s later; `retried`), INVALID_PHONE, TWILIO_TIMEOUT, TWILIO_AUTH_FAILED, TWILIO_ERROR, TEST_NUMBER (test-suite phones +917000000…, never sent)",
     example: { to: "+918530921384", body: "Ramesh confirmed: he'll come today at 5 PM." },
   },
   make_call: {
