@@ -58,8 +58,10 @@ check("wrong UPI -> mismatch on upi_id", r.status === "mismatch" && r.mismatched
 r = await custom("technician_identity_check", { name: "Santosh Jadhav", phone: "+919000000023" });
 console.log("      ", r.explanation);
 check("Santosh's phone registered to someone else -> mismatch, masked name only", r.status === "mismatch" && r.registered_name_hint === "S**** J*****" && !JSON.stringify(r).includes("Sunil"), r);
-r = await custom("technician_identity_check", { name: "Anil Kale", phone: "+919000000013" });
-check("Anil -> not_found (not a Pine Labs merchant)", r.status === "not_found", r);
+r = await custom("technician_identity_check", { name: "Anil Kale", phone: "+919823562151", upi_id: "anil.kale@okicici" });
+check("Anil (Samiksha's number) -> verified, phone/name/upi matched", r.status === "verified" && r.matched_fields.join() === "phone,name,upi_id", r);
+r = await custom("technician_identity_check", { name: "Vikas Shinde", phone: "+919000000022" });
+check("Vikas -> not_found (not a Pine Labs merchant)", r.status === "not_found", r);
 
 // failure switches
 await core("scenario_set", { key: "custom.next_presence", value: "not_present" });

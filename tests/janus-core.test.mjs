@@ -46,7 +46,7 @@ r = await call("get_party_by_phone", { phone: "abcdef" });
 check("party: invalid phone -> INVALID_PHONE", r.ok === false && r.error_code === "INVALID_PHONE", r);
 
 r = await call("household_get", { household_id: "hh_priya" });
-check("household_get: 2 members, 4 appliances, 2 techs", r.members?.length === 2 && r.appliances?.length === 4 && r.technicians?.length === 2, r);
+check("household_get: 2 members, 4 appliances, 3 techs (Ramesh, Suresh, Anil)", r.members?.length === 2 && r.appliances?.length === 4 && r.technicians?.length === 3, r);
 r = await call("household_get", { household_id: "hh_nope" });
 check("household_get: missing -> HOUSEHOLD_NOT_FOUND", r.error_code === "HOUSEHOLD_NOT_FOUND", r);
 
@@ -60,7 +60,7 @@ const [first, ...rest] = r.technicians ?? [];
 const anil = rest.find((t) => t.name === "Anil Kale");
 check("tech list AC: Ramesh first (household)", first?.name === "Ramesh Patil" && first?.relationship === "known", r);
 check("tech list AC: Ramesh history ₹600, typical range from 3 points", first?.your_history?.last_paid === 600 && first?.typical_price_range?.data_points === 3, first);
-check("tech list AC: Anil from society with 1 open complaint", anil?.relationship === "society_log" && anil?.open_complaints === 1, rest);
+check("tech list AC: Anil is Priya's own (known) AC technician, after Ramesh, available, 1 open complaint", rest[0]?.name === "Anil Kale" && anil?.relationship === "known" && anil?.availability_status === "available" && anil?.opted_in === true && anil?.phone === "+919823562151" && anil?.open_complaints === 1, rest);
 check("tech list AC: no brand warning", r.brand_only_warning === null, r.brand_only_warning);
 r = await call("technician_list_for_appliance", { household_id: "hh_priya", appliance_type: "washing_machine" });
 check("tech list WM: brand_only warning", typeof r.brand_only_warning === "string", r);

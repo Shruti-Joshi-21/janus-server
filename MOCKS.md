@@ -100,7 +100,7 @@ Competition rule: up to 3 capabilities that Gnani, Pine Labs or Delhivery don't 
 | --- | --- | --- | --- |
 | `proof_of_presence` | **Delhivery** | Billions of delivery GPS pings and geocoded doorstep addresses | The household's coordinates (`households.latitude/longitude`) and the job's `confirmed_slot` |
 | `technician_discovery` | **Delhivery** | POI / business listings behind its Autosuggest search | `technician_directory` (3 Pune repair businesses near Baner, `source: "delhivery_poi"`) |
-| `technician_identity_check` | **Pine Labs** | KYC on merchants it onboarded for UPI/QR acceptance | `pine_merchants` (4 merchants: Ramesh and Suresh verified; Mahesh verified; Santosh's phone registered to "Sunil Jadhav"; Anil absent) |
+| `technician_identity_check` | **Pine Labs** | KYC on merchants it onboarded for UPI/QR acceptance | `pine_merchants` (5 merchants: Ramesh, Suresh, Anil and Mahesh verified; Santosh's phone registered to "Sunil Jadhav"; Vikas absent → not_found) |
 
 Rules (ours):
 - **proof_of_presence**: present if within **200 m** of the household (straight-line); `unknown` if no location was shared, if the location is older than **15 minutes**, if the phone isn't the job's technician, or if the household has no coordinates. `minutes_from_slot` = location time minus the agreed slot.

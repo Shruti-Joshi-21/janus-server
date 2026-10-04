@@ -126,7 +126,7 @@ Worked examples (demo data): AC `gas_top_up` ₹650 → fair (Priya paid ₹600 
 
 - **Is the technician really here?** When he shares his WhatsApp location, call `proof_of_presence {job_id, technician_phone, latitude, longitude, timestamp: received_at}` → `present` true (within 200 m) / false / "unknown" (no location, older than 15 min, or not this job's technician), with `distance_m` and `minutes_from_slot`. Use it before marking the job `in_progress` or when the household says he never came.
 - **Nobody available?** `technician_discovery {appliance_type, latitude, longitude, radius_m}` lists nearby businesses (from Delhivery POI data) with phone, rating, distance and ETA. From Priya's home: AC → Shree Sai Cooling (1.2 km, ~4 min), Om Electricals (2.7 km).
-- **Is he who he says?** `technician_identity_check {name, phone, upi_id?}` → `verified` / `mismatch` (registered name shown masked) / `not_found`. Check before paying a technician the household doesn't know. Demo: Ramesh and Suresh verify; Santosh's number is registered to someone else (mismatch); Anil isn't a Pine Labs merchant (not_found).
+- **Is he who he says?** `technician_identity_check {name, phone, upi_id?}` → `verified` / `mismatch` (registered name shown masked) / `not_found`. Check before paying a technician the household doesn't know. Demo: Ramesh, Suresh and Anil verify; Santosh's number is registered to someone else (mismatch); Vikas (+919000000022) isn't a Pine Labs merchant (not_found).
 
 ## Receiving WhatsApp messages (Janus's inbox)
 
@@ -153,7 +153,7 @@ AgenticOrg's native Twilio connector failed its connection test, so Janus sends 
 
 ## Demo data (after a reset)
 
-Real phones: **Priya = Shruti** (+918530921384), **Ramesh = Aarya** (+918369502720), **Suresh = Gayatri** (+918308407020). Rohan and Anil are still **placeholders** (+9190000000xx); ids stay the same.
+Real phones: **Priya = Shruti** (+918530921384), **Ramesh = Aarya** (+918369502720), **Suresh = Gayatri** (+918308407020), **Anil = Samiksha** (+919823562151). Rohan is still a **placeholder** (+919000000002); ids stay the same.
 
 **Society** `soc_sai_heights` — Sai Heights, Baner, Pune 411045.
 
@@ -179,7 +179,7 @@ Real phones: **Priya = Shruti** (+918530921384), **Ramesh = Aarya** (+9183695027
 | --- | --- | --- | --- | --- | --- | --- |
 | `tech_ramesh` | Ramesh Patil | +918369502720 | AC, fridge | text | yes | Priya's own technician (also recommended in society) |
 | `tech_suresh` | Suresh More | +918308407020 | RO | voice note | yes | Priya's RO AMC + society log (2 recommendations) |
-| `tech_anil` | Anil Kale | +919000000013 | AC | call | no | Society log; **1 open complaint** from another flat (gas top-up failed again, not answering) |
+| `tech_anil` | Anil Kale | +919823562151 | AC | text | yes (available) | Priya's **second AC technician** (in her own list, after Ramesh; also in the society log); verified Pine Labs merchant (UPI `anil.kale@okicici`); **1 open complaint** from another flat (gas top-up failed again) |
 
 **Past jobs and prices (Priya)**
 
